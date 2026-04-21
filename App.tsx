@@ -5,15 +5,21 @@
  * @format
  */
 
+import React, { useEffect } from 'react';
 import { NewAppScreen } from '@react-native/new-app-screen';
 import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { initDirections } from './src/services/initData';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
+
+  useEffect(() => {
+    initDirections();
+  }, []);
 
   return (
     <SafeAreaProvider>
