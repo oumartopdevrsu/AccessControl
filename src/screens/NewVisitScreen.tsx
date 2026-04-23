@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  Alert,
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,10 +9,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ServiceDirectionChips } from '../components/ServiceDirectionChips';
-import { getServiceDirections } from '../services/serviceDirectionService';
-import { scanCnib } from '../services/ocrService';
-import { createVisit } from '../services/visitService';
+import {ServiceDirectionChips} from '../components/ServiceDirectionChips';
+import {scanCnib} from '../services/ocrService';
+import {getServiceDirections} from '../services/serviceDirectionService';
+import {createVisit} from '../services/visitService';
 import {
   EMPTY_VISIT_FORM,
   ServiceDirection,
@@ -72,17 +72,13 @@ export function NewVisitScreen() {
 
       if (extractedFields.length === 0) {
         setScanStatus(
-          'Photo prise, mais les champs Nom, Prenom, Nee le ou le numero CNIB commencant par B n ont pas ete trouves.',
-        );
-        Alert.alert(
-          'Scan CNIB',
-          "La photo a ete prise, mais l'OCR n'a pas trouve les informations attendues : Nom, Prenom, Nee le ou numero CNIB commencant par B.",
+          'Photo prise, mais les champs cibles de la CNIB n ont pas ete trouves.',
         );
         return;
       }
 
       setScanStatus(
-        `Scan termine : ${extractedFields.join(', ')} renseigne(s). Le contact reste a saisir manuellement.`,
+        `Scan termine : ${extractedFields.join(', ')} renseigne(s). Complete le genre et le contact manuellement.`,
       );
     } catch (error) {
       const message =
@@ -98,12 +94,13 @@ export function NewVisitScreen() {
     if (
       !form.nom.trim() ||
       !form.prenom.trim() ||
+      !form.genre ||
       !form.dateDelivrance.trim() ||
       !form.numeroDocument.trim()
     ) {
       Alert.alert(
         'Champs requis',
-        'Le nom, le prenom, la date de delivrance et le numero du document sont obligatoires.',
+        'Le nom, le prenom, le genre, la date de delivrance et le numero du document sont obligatoires.',
       );
       return;
     }
@@ -133,7 +130,6 @@ export function NewVisitScreen() {
       <View style={styles.header}>
         <Text style={styles.appName}>Access Control RSU</Text>
         <Text style={styles.title}>Enregistrement</Text>
-        {/* <Text style={styles.subtitle}>Fonctionne aussi hors ligne</Text> */}
       </View>
 
       <View style={styles.section}>
@@ -144,6 +140,12 @@ export function NewVisitScreen() {
           value={form.codeServiceDirection}
           onChange={value => updateForm('codeServiceDirection', value)}
         />
+        {directions.length === 0 && (
+          <Text style={styles.helperText}>
+            Aucun service local. Reviens a l&apos;accueil pour charger les
+            services du backend.
+          </Text>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -196,6 +198,38 @@ export function NewVisitScreen() {
               placeholder="Prenom"
             />
           </View>
+        </View>
+
+        <Text style={styles.label}>Genre *</Text>
+        <View style={styles.genderRow}>
+          <Pressable
+            style={[
+              styles.genderChip,
+              form.genre === 'M' && styles.genderChipActive,
+            ]}
+            onPress={() => updateForm('genre', 'M')}>
+            <Text
+              style={[
+                styles.genderChipText,
+                form.genre === 'M' && styles.genderChipTextActive,
+              ]}>
+              Masculin
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.genderChip,
+              form.genre === 'F' && styles.genderChipActive,
+            ]}
+            onPress={() => updateForm('genre', 'F')}>
+            <Text
+              style={[
+                styles.genderChipText,
+                form.genre === 'F' && styles.genderChipTextActive,
+              ]}>
+              Feminin
+            </Text>
+          </Pressable>
         </View>
 
         <Text style={styles.label}>Date de delivrance *</Text>
@@ -264,11 +298,6 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
   },
-  subtitle: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontWeight: '500',
-  },
   section: {
     backgroundColor: '#f8fbff',
     borderRadius: 10,
@@ -281,6 +310,10 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontSize: 17,
     fontWeight: '800',
+  },
+  helperText: {
+    color: '#64748b',
+    fontSize: 12,
   },
   scanHeader: {
     alignItems: 'center',
@@ -336,6 +369,31 @@ const styles = StyleSheet.create({
     minHeight: 82,
     paddingTop: 10,
     textAlignVertical: 'top',
+  },
+  genderRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  genderChip: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#93c5fd',
+    borderRadius: 8,
+    backgroundColor: '#eff6ff',
+  },
+  genderChipActive: {
+    backgroundColor: '#0f766e',
+    borderColor: '#0f766e',
+  },
+  genderChipText: {
+    color: '#0369a1',
+    fontWeight: '700',
+  },
+  genderChipTextActive: {
+    color: '#ffffff',
   },
   primaryButton: {
     minHeight: 48,

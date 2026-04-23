@@ -14,7 +14,11 @@ import {
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { initLocalData } from './src/services/initData';
-import { AuthUser, authenticateUser } from './src/services/userService';
+import {
+  AuthUser,
+  authenticateUser,
+  clearCurrentUser,
+} from './src/services/userService';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -54,7 +58,11 @@ function App() {
 
       setCurrentUser(user);
     } catch (error) {
-      Alert.alert('Connexion', 'Impossible de verifier le compte local.');
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Impossible de verifier le compte local.';
+      Alert.alert('Connexion', message);
       console.error(error);
     } finally {
       setAuthLoading(false);
@@ -74,7 +82,12 @@ function App() {
           <LoginScreen loading={authLoading} onSubmit={handleLogin} />
         </SafeAreaView>
       ) : (
-        <AppNavigator onLogout={() => setCurrentUser(null)} />
+        <AppNavigator
+          onLogout={async () => {
+            await clearCurrentUser();
+            setCurrentUser(null);
+          }}
+        />
       )}
     </SafeAreaProvider>
   );

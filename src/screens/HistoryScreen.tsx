@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {
   Alert,
   Pressable,
@@ -8,22 +8,19 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { ServiceDirectionChips } from '../components/ServiceDirectionChips';
-import { getServiceDirections } from '../services/serviceDirectionService';
-import {
-  closeVisit,
-  getVisits,
-  syncVisitsEndOfDay,
-} from '../services/visitService';
-import { ServiceDirection, Visit } from '../types/domain';
-import { todayInputValue } from '../utils/date';
+import {useFocusEffect} from '@react-navigation/native';
+import {ServiceDirectionChips} from '../components/ServiceDirectionChips';
+import {getServiceDirections} from '../services/serviceDirectionService';
+import {closeVisit, getVisits, syncSelectedVisits} from '../services/visitService';
+import {ServiceDirection, Visit} from '../types/domain';
+import {todayInputValue} from '../utils/date';
 
 export function HistoryScreen() {
   const [directions, setDirections] = useState<ServiceDirection[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [dateFilter, setDateFilter] = useState('');
   const [directionFilter, setDirectionFilter] = useState('ALL');
+  const [selectedVisitIds, setSelectedVisitIds] = useState<string[]>([]);
 
   const refreshData = useCallback(async () => {
     const [nextDirections, nextVisits] = await Promise.all([
@@ -33,6 +30,9 @@ export function HistoryScreen() {
 
     setDirections(nextDirections);
     setVisits(nextVisits);
+    setSelectedVisitIds(current =>
+      current.filter(id => nextVisits.some(visit => visit.id === id)),
+    );
   }, []);
 
   useFocusEffect(
@@ -59,24 +59,63 @@ export function HistoryScreen() {
     });
   }, [dateFilter, directionFilter, visits]);
 
+  const selectedCount = selectedVisitIds.length;
+  const allFilteredSelected =
+    filteredVisits.length > 0 &&
+    filteredVisits.every(visit => selectedVisitIds.includes(visit.id));
+
+  const toggleVisitSelection = (visitId: string) => {
+    setSelectedVisitIds(current =>
+      current.includes(visitId)
+        ? current.filter(id => id !== visitId)
+        : [...current, visitId],
+    );
+  };
+
+  const toggleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      setSelectedVisitIds(current =>
+        current.filter(id => !filteredVisits.some(visit => visit.id === id)),
+      );
+      return;
+    }
+
+    setSelectedVisitIds(current => {
+      const merged = new Set(current);
+      filteredVisits.forEach(visit => merged.add(visit.id));
+      return Array.from(merged);
+    });
+  };
+
   const markExit = async (visitId: string) => {
     await closeVisit(visitId);
     await refreshData();
   };
 
   const syncVisits = async () => {
-    const syncedCount = await syncVisitsEndOfDay();
-
-    if (syncedCount === 0) {
-      Alert.alert('Synchronisation', 'Aucune visite a envoyer.');
+    if (selectedVisitIds.length === 0) {
+      Alert.alert(
+        'Synchronisation',
+        'Selectionne au moins une visite a envoyer au serveur.',
+      );
       return;
     }
 
-    await refreshData();
-    Alert.alert(
-      'Synchronisation terminee',
-      `${syncedCount} visite(s) envoyee(s) et supprimee(s) localement.`,
-    );
+    try {
+      const response = await syncSelectedVisits(selectedVisitIds);
+
+      await refreshData();
+      setSelectedVisitIds([]);
+
+      Alert.alert(
+        'Synchronisation terminee',
+        `${response.created} creee(s), ${response.duplicates} doublon(s), ${response.failed} echec(s).`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Erreur de synchronisation.';
+      Alert.alert('Synchronisation', message);
+    }
   };
 
   return (
@@ -86,8 +125,10 @@ export function HistoryScreen() {
           <Text style={styles.appName}>Access Control RSU</Text>
           <Text style={styles.title}>Historique des visites</Text>
         </View>
-        <Pressable style={styles.dangerButton} onPress={syncVisits}>
-          <Text style={styles.dangerButtonText}>Envoyer fin journee</Text>
+        <Pressable style={styles.syncButton} onPress={syncVisits}>
+          <Text style={styles.syncButtonText}>
+            Envoyer la selection ({selectedCount})
+          </Text>
         </Pressable>
       </View>
 
@@ -110,49 +151,79 @@ export function HistoryScreen() {
           includeAll
           onChange={setDirectionFilter}
         />
+
+        <Pressable style={styles.selectAllButton} onPress={toggleSelectAllFiltered}>
+          <Text style={styles.selectAllButtonText}>
+            {allFilteredSelected
+              ? 'Tout deselectionner'
+              : 'Selectionner tout le filtre'}
+          </Text>
+        </Pressable>
       </View>
 
       {filteredVisits.length === 0 ? (
         <Text style={styles.emptyText}>Aucune visite pour ce filtre.</Text>
       ) : (
-        filteredVisits.map(visit => (
-          <View key={visit.id} style={styles.visitItem}>
-            <View style={styles.visitTopLine}>
-              <Text style={styles.visitName}>
-                {visit.nom} {visit.prenom}
-              </Text>
-              <Text style={styles.visitCode}>
-                {directionByCode[visit.codeServiceDirection]?.code ||
+        filteredVisits.map(visit => {
+          const isSelected = selectedVisitIds.includes(visit.id);
+          return (
+            <View key={visit.id} style={styles.visitItem}>
+              <View style={styles.visitHeader}>
+                <Pressable
+                  style={[
+                    styles.checkbox,
+                    isSelected && styles.checkboxSelected,
+                  ]}
+                  onPress={() => toggleVisitSelection(visit.id)}>
+                  <Text
+                    style={[
+                      styles.checkboxText,
+                      isSelected && styles.checkboxTextSelected,
+                    ]}>
+                    {isSelected ? 'X' : ''}
+                  </Text>
+                </Pressable>
+
+                <View style={styles.visitTopLine}>
+                  <Text style={styles.visitName}>
+                    {visit.nom} {visit.prenom}
+                  </Text>
+                  <Text style={styles.visitCode}>
+                    {directionByCode[visit.codeServiceDirection]?.code ||
+                      visit.codeServiceDirection}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.visitMeta}>
+                {directionByCode[visit.codeServiceDirection]?.libelle ||
                   visit.codeServiceDirection}
               </Text>
-            </View>
-            <Text style={styles.visitMeta}>
-              {directionByCode[visit.codeServiceDirection]?.libelle ||
-                visit.codeServiceDirection}
-            </Text>
-            {!!visit.dateDelivrance && (
+              <Text style={styles.visitMeta}>Genre: {visit.genre}</Text>
+              {!!visit.dateDelivrance && (
+                <Text style={styles.visitMeta}>
+                  Date delivrance: {visit.dateDelivrance}
+                </Text>
+              )}
               <Text style={styles.visitMeta}>
-                Date delivrance: {visit.dateDelivrance}
+                Doc: {visit.numeroDocument} | Contact: {visit.contact || '-'}
               </Text>
-            )}
-            <Text style={styles.visitMeta}>
-              Doc: {visit.numeroDocument} | Contact: {visit.contact || '-'}
-            </Text>
-            <Text style={styles.visitMeta}>
-              {visit.date} | Entree: {visit.heureEntree} | Sortie:{' '}
-              {visit.heureSortie || 'en cours'}
-            </Text>
-            {!!visit.motif && <Text style={styles.visitMeta}>{visit.motif}</Text>}
+              <Text style={styles.visitMeta}>
+                {visit.date} | Entree: {visit.heureEntree} | Sortie:{' '}
+                {visit.heureSortie || 'en cours'}
+              </Text>
+              {!!visit.motif && <Text style={styles.visitMeta}>{visit.motif}</Text>}
 
-            {!visit.heureSortie && (
-              <Pressable
-                style={styles.smallButton}
-                onPress={() => markExit(visit.id)}>
-                <Text style={styles.smallButtonText}>Marquer la sortie</Text>
-              </Pressable>
-            )}
-          </View>
-        ))
+              {!visit.heureSortie && (
+                <Pressable
+                  style={styles.smallButton}
+                  onPress={() => markExit(visit.id)}>
+                  <Text style={styles.smallButtonText}>Marquer la sortie</Text>
+                </Pressable>
+              )}
+            </View>
+          );
+        })
       )}
     </ScrollView>
   );
@@ -215,8 +286,8 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 12,
   },
-  dangerButton: {
-    minHeight: 36,
+  syncButton: {
+    minHeight: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
@@ -225,8 +296,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#eff6ff',
     paddingHorizontal: 12,
   },
-  dangerButtonText: {
+  syncButtonText: {
     color: '#0369a1',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  selectAllButton: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: '#0f766e',
+  },
+  selectAllButtonText: {
+    color: '#ffffff',
     fontWeight: '800',
   },
   emptyText: {
@@ -242,11 +325,40 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 5,
   },
+  visitHeader: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#93c5fd',
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  checkboxSelected: {
+    backgroundColor: '#0f766e',
+    borderColor: '#0f766e',
+  },
+  checkboxText: {
+    color: '#eff6ff',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  checkboxTextSelected: {
+    color: '#ffffff',
+  },
   visitTopLine: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 10,
+    flex: 1,
   },
   visitName: {
     color: '#0f172a',

@@ -6,5 +6,7 @@ export const ServiceDirectionSchema: Realm.ObjectSchema = {
   properties: {
     code: 'string',
     libelle: 'string',
+    serverId: 'int?',
+    active: {type: 'bool', default: true},
   },
 };

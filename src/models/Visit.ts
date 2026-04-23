@@ -5,8 +5,11 @@ export const VisitSchema: Realm.ObjectSchema = {
   primaryKey: 'id',
   properties: {
     id: 'string',
+    mobileRef: 'string',
+    serverId: 'int?',
     nom: 'string',
     prenom: 'string',
+    genre: 'string',
     dateDelivrance: 'string?',
     numeroDocument: 'string',
     contact: 'string',

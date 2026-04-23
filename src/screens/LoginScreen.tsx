@@ -85,12 +85,13 @@ export function LoginScreen({loading = false, onSubmit}: Props) {
             </Pressable>
 
             <View style={styles.infoBox}>
-              <Text style={styles.infoTitle}>Mode local</Text>
+              <Text style={styles.infoTitle}>Connexion mobile</Text>
               <Text style={styles.helperText}>
-                Compte par defaut : admin / admin
+                Premiere connexion: le compte doit exister sur le backend.
               </Text>
               <Text style={styles.helperText}>
-                Les visites restent disponibles hors ligne sur l&apos;appareil.
+                Ensuite, les informations de connexion peuvent etre reutilisees
+                hors ligne.
               </Text>
             </View>
           </View>

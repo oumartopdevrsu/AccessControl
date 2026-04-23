@@ -1,11 +1,39 @@
-import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import React, {useState} from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import {RootTabParamList} from '../navigation/AppNavigator';
+import {syncServiceDirectionsFromBackend} from '../services/serviceDirectionService';
+import {getApiBaseUrl} from '../services/api';
 
 type Props = BottomTabScreenProps<RootTabParamList, 'Home'>;
 
 export function HomeScreen({navigation}: Props) {
+  const [loadingServices, setLoadingServices] = useState(false);
+
+  const handleSyncServices = async () => {
+    try {
+      setLoadingServices(true);
+      const total = await syncServiceDirectionsFromBackend();
+      Alert.alert(
+        'Services charges',
+        `${total} service(s) ou direction(s) ont ete recuperes depuis le backend.`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Erreur de synchronisation.';
+      Alert.alert('Chargement des services', message);
+    } finally {
+      setLoadingServices(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.hero}>
@@ -20,7 +48,7 @@ export function HomeScreen({navigation}: Props) {
         <Pressable
           style={[styles.actionCard, styles.primaryCard]}
           onPress={() => navigation.navigate('NewVisit')}>
-          <Text style={[styles.cardIcon, styles.primaryCardIcon]}>◎</Text>
+          <Text style={[styles.cardIcon, styles.primaryCardIcon]}>+</Text>
           <Text style={[styles.cardTitle, styles.primaryCardTitle]}>
             Ajouter une visite
           </Text>
@@ -32,14 +60,32 @@ export function HomeScreen({navigation}: Props) {
         <Pressable
           style={[styles.actionCard, styles.secondaryCard]}
           onPress={() => navigation.navigate('History')}>
-          <Text style={[styles.cardIcon, styles.secondaryCardIcon]}>◷</Text>
+          <Text style={[styles.cardIcon, styles.secondaryCardIcon]}>H</Text>
           <Text style={[styles.cardTitle, styles.secondaryCardTitle]}>
             Consulter l&apos;historique
           </Text>
           <Text style={[styles.cardText, styles.secondaryCardText]}>
-            Retrouver les visites, filtrer par date et preparer la
-            synchronisation.
+            Retrouver les visites, filtrer par date et choisir celles a
+            synchroniser.
           </Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.infoBox}>
+        <Text style={styles.infoTitle}>Backend</Text>
+        <Text style={styles.infoText}>{getApiBaseUrl()}</Text>
+        <Pressable
+          style={[
+            styles.syncButton,
+            loadingServices && styles.syncButtonDisabled,
+          ]}
+          disabled={loadingServices}
+          onPress={handleSyncServices}>
+          {loadingServices ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Text style={styles.syncButtonText}>Charger les services</Text>
+          )}
         </Pressable>
       </View>
 
@@ -105,7 +151,7 @@ const styles = StyleSheet.create({
   },
   cardIcon: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   primaryCardIcon: {
     color: '#ffffff',
@@ -139,7 +185,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#99f6e4',
     padding: 14,
-    gap: 4,
+    gap: 8,
   },
   infoTitle: {
     color: '#0f766e',
@@ -150,5 +196,20 @@ const styles = StyleSheet.create({
     color: '#334155',
     fontSize: 13,
     lineHeight: 18,
+  },
+  syncButton: {
+    minHeight: 42,
+    borderRadius: 10,
+    backgroundColor: '#0284c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  syncButtonDisabled: {
+    opacity: 0.7,
+  },
+  syncButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });
