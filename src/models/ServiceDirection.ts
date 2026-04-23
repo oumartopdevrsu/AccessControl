@@ -1,4 +1,6 @@
-export const ServiceDirectionSchema = {
+import Realm from 'realm';
+
+export const ServiceDirectionSchema: Realm.ObjectSchema = {
   name: 'ServiceDirection',
   primaryKey: 'code',
   properties: {

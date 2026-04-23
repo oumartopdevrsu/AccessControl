@@ -1,21 +1,27 @@
-import { getRealm } from '../database/realm';
+import Realm from 'realm';
 import { DIRECTIONS } from '../constants/directions';
+import { getRealm } from '../database/realm';
 
-export const initDirections = async () => {
+export const initLocalData = async () => {
   const realm = await getRealm();
 
-  const existingDirections = realm.objects('ServiceDirection');
-
-  if (existingDirections.length > 0) {
-    console.log('Les directions existent déjà dans Realm');
-    return;
-  }
-
   realm.write(() => {
-    DIRECTIONS.forEach(direction => {
-      realm.create('ServiceDirection', direction);
+    DIRECTIONS.forEach(item => {
+      realm.create('ServiceDirection', item, Realm.UpdateMode.Modified);
     });
+
+    const admin = realm.objectForPrimaryKey('User', 'admin');
+    if (!admin) {
+      realm.create('User', {
+        nom: 'Admin',
+        prenom: 'Local',
+        username: 'admin',
+        password: 'admin',
+      });
+    }
   });
 
-  console.log('Directions insérées avec succès dans Realm');
+  realm.close();
 };
+
+export const initDirections = initLocalData;

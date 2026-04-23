@@ -1,4 +1,6 @@
-export const UserSchema = {
+import Realm from 'realm';
+
+export const UserSchema: Realm.ObjectSchema = {
   name: 'User',
   primaryKey: 'username',
   properties: {
