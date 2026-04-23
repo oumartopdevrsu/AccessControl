@@ -7,7 +7,7 @@ export const VisitSchema: Realm.ObjectSchema = {
     id: 'string',
     nom: 'string',
     prenom: 'string',
-    dateNaissance: 'string?',
+    dateDelivrance: 'string?',
     numeroDocument: 'string',
     contact: 'string',
     motif: 'string?',

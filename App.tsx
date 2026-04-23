@@ -12,11 +12,15 @@ import {
   SafeAreaView,
 } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { LoginScreen } from './src/screens/LoginScreen';
 import { initLocalData } from './src/services/initData';
+import { AuthUser, authenticateUser } from './src/services/userService';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -33,6 +37,30 @@ function App() {
     bootstrap();
   }, []);
 
+  const handleLogin = async (username: string, password: string) => {
+    if (!username.trim() || !password.trim()) {
+      Alert.alert('Connexion', "Saisis le nom d'utilisateur et le mot de passe.");
+      return;
+    }
+
+    try {
+      setAuthLoading(true);
+      const user = await authenticateUser(username, password);
+
+      if (!user) {
+        Alert.alert('Connexion', 'Identifiants invalides.');
+        return;
+      }
+
+      setCurrentUser(user);
+    } catch (error) {
+      Alert.alert('Connexion', 'Impossible de verifier le compte local.');
+      console.error(error);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
@@ -41,8 +69,12 @@ function App() {
           <ActivityIndicator />
           <Text style={styles.mutedText}>Chargement des donnees locales...</Text>
         </SafeAreaView>
+      ) : !currentUser ? (
+        <SafeAreaView style={styles.authShell}>
+          <LoginScreen loading={authLoading} onSubmit={handleLogin} />
+        </SafeAreaView>
       ) : (
-        <AppNavigator />
+        <AppNavigator onLogout={() => setCurrentUser(null)} />
       )}
     </SafeAreaProvider>
   );
@@ -58,6 +90,9 @@ const styles = StyleSheet.create({
   },
   mutedText: {
     color: '#6b7280',
+  },
+  authShell: {
+    flex: 1,
   },
 });
 

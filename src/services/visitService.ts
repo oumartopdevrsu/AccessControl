@@ -1,6 +1,6 @@
 import { getRealm } from '../database/realm';
 import { Visit, VisitForm } from '../types/domain';
-import { formatTime } from '../utils/date';
+import { formatLocalDate, formatTime } from '../utils/date';
 import { copyRealmObject } from '../utils/realm';
 
 export const getVisits = async () => {
@@ -23,12 +23,12 @@ export const createVisit = async (form: VisitForm) => {
       id: `${now.getTime()}`,
       nom: form.nom.trim(),
       prenom: form.prenom.trim(),
-      dateNaissance: form.dateNaissance.trim() || null,
+      dateDelivrance: form.dateDelivrance.trim(),
       numeroDocument: form.numeroDocument.trim(),
       contact: form.contact.trim(),
       motif: form.motif.trim() || null,
       codeServiceDirection: form.codeServiceDirection,
-      date: now.toISOString().slice(0, 10),
+      date: formatLocalDate(now),
       heureEntree: formatTime(now),
       heureSortie: null,
       synced: false,

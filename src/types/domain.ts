@@ -7,7 +7,7 @@ export type Visit = {
   id: string;
   nom: string;
   prenom: string;
-  dateNaissance?: string | null;
+  dateDelivrance?: string | null;
   numeroDocument: string;
   contact: string;
   motif?: string | null;
@@ -21,7 +21,7 @@ export type Visit = {
 export type VisitForm = {
   nom: string;
   prenom: string;
-  dateNaissance: string;
+  dateDelivrance: string;
   numeroDocument: string;
   contact: string;
   motif: string;
@@ -31,7 +31,7 @@ export type VisitForm = {
 export const EMPTY_VISIT_FORM: VisitForm = {
   nom: '',
   prenom: '',
-  dateNaissance: '',
+  dateDelivrance: '',
   numeroDocument: '',
   contact: '',
   motif: '',

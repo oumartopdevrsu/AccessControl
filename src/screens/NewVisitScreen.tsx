@@ -59,24 +59,24 @@ export function NewVisitScreen() {
         ...current,
         nom: extracted.nom || current.nom,
         prenom: extracted.prenom || current.prenom,
-        dateNaissance: extracted.dateNaissance || current.dateNaissance,
+        dateDelivrance: extracted.dateDelivrance || current.dateDelivrance,
         numeroDocument: extracted.numeroDocument || current.numeroDocument,
       }));
 
       const extractedFields = [
         extracted.nom && 'nom',
         extracted.prenom && 'prenom',
-        extracted.dateNaissance && 'date de naissance',
+        extracted.dateDelivrance && 'date de delivrance',
         extracted.numeroDocument && 'numero document',
       ].filter(Boolean);
 
       if (extractedFields.length === 0) {
         setScanStatus(
-          'Photo prise, mais aucune information exploitable n a ete reconnue.',
+          'Photo prise, mais les champs Nom, Prenom, Nee le ou le numero CNIB commencant par B n ont pas ete trouves.',
         );
         Alert.alert(
           'Scan CNIB',
-          "La photo a ete prise, mais l'OCR n'a pas reconnu les informations attendues.",
+          "La photo a ete prise, mais l'OCR n'a pas trouve les informations attendues : Nom, Prenom, Nee le ou numero CNIB commencant par B.",
         );
         return;
       }
@@ -95,10 +95,15 @@ export function NewVisitScreen() {
   };
 
   const submitVisit = async () => {
-    if (!form.nom.trim() || !form.prenom.trim() || !form.numeroDocument.trim()) {
+    if (
+      !form.nom.trim() ||
+      !form.prenom.trim() ||
+      !form.dateDelivrance.trim() ||
+      !form.numeroDocument.trim()
+    ) {
       Alert.alert(
         'Champs requis',
-        'Le nom, le prenom et le numero du document sont obligatoires.',
+        'Le nom, le prenom, la date de delivrance et le numero du document sont obligatoires.',
       );
       return;
     }
@@ -146,7 +151,7 @@ export function NewVisitScreen() {
           <View style={styles.scanTextBlock}>
             <Text style={styles.sectionTitle}>Scan document</Text>
             <Text style={styles.scanHelp}>
-              Scanner la CNIB pour recuperer nom, prenom, date de naissance et
+              Scanner la CNIB pour recuperer nom, prenom, date de delivrance et
               numero du document.
             </Text>
           </View>
@@ -173,7 +178,7 @@ export function NewVisitScreen() {
 
         <View style={styles.row}>
           <View style={styles.field}>
-            <Text style={styles.label}>Nom</Text>
+            <Text style={styles.label}>Nom *</Text>
             <TextInput
               style={styles.input}
               value={form.nom}
@@ -183,7 +188,7 @@ export function NewVisitScreen() {
             />
           </View>
           <View style={styles.field}>
-            <Text style={styles.label}>Prenom</Text>
+            <Text style={styles.label}>Prenom *</Text>
             <TextInput
               style={styles.input}
               value={form.prenom}
@@ -193,15 +198,15 @@ export function NewVisitScreen() {
           </View>
         </View>
 
-        <Text style={styles.label}>Date de naissance</Text>
+        <Text style={styles.label}>Date de delivrance *</Text>
         <TextInput
           style={styles.input}
-          value={form.dateNaissance}
-          onChangeText={value => updateForm('dateNaissance', value)}
+          value={form.dateDelivrance}
+          onChangeText={value => updateForm('dateDelivrance', value)}
           placeholder="JJ/MM/AAAA"
         />
 
-        <Text style={styles.label}>Numero document</Text>
+        <Text style={styles.label}>Numero document *</Text>
         <TextInput
           style={styles.input}
           value={form.numeroDocument}
@@ -238,7 +243,7 @@ export function NewVisitScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f6f7f9',
+    backgroundColor: '#eaf4ff',
   },
   content: {
     padding: 16,
@@ -246,16 +251,17 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 4,
+    paddingBottom: 4,
   },
   appName: {
-    color: '#14532d',
+    color: '#0f766e',
     fontSize: 13,
     fontWeight: '800',
   },
   title: {
-    color: '#111827',
+    color: '#0f172a',
     flex: 1,
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
   },
   subtitle: {
@@ -264,15 +270,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   section: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
+    backgroundColor: '#f8fbff',
+    borderRadius: 10,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#cfe3ff',
     gap: 10,
   },
   sectionTitle: {
-    color: '#111827',
+    color: '#0f172a',
     fontSize: 17,
     fontWeight: '800',
   },
@@ -287,20 +293,20 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   scanHelp: {
-    color: '#6b7280',
+    color: '#475569',
     fontSize: 13,
     lineHeight: 18,
   },
   scanStatus: {
-    borderRadius: 6,
-    backgroundColor: '#ecfdf5',
+    borderRadius: 8,
+    backgroundColor: '#ecfeff',
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#99f6e4',
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   scanStatusText: {
-    color: '#166534',
+    color: '#0f766e',
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
@@ -313,17 +319,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    color: '#374151',
+    color: '#1e3a8a',
     fontSize: 13,
     fontWeight: '600',
   },
   input: {
     minHeight: 44,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
+    borderColor: '#bfdbfe',
+    borderRadius: 8,
     paddingHorizontal: 12,
-    color: '#111827',
+    color: '#0f172a',
     backgroundColor: '#ffffff',
   },
   textarea: {
@@ -335,8 +341,8 @@ const styles = StyleSheet.create({
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
-    backgroundColor: '#14532d',
+    borderRadius: 8,
+    backgroundColor: '#0f766e',
     marginTop: 4,
   },
   primaryButtonText: {
@@ -349,16 +355,17 @@ const styles = StyleSheet.create({
     minWidth: 128,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#0f766e',
-    paddingHorizontal: 10,
+    borderColor: '#0284c7',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 12,
   },
   secondaryButtonDisabled: {
     opacity: 0.7,
   },
   secondaryButtonText: {
-    color: '#0f766e',
+    color: '#0369a1',
     fontSize: 13,
     fontWeight: '800',
   },

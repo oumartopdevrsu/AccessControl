@@ -4,68 +4,101 @@ import { VisitForm } from '../types/domain';
 
 type OcrBlock = {
   text: string;
+  lines?: OcrLine[];
+};
+
+type OcrLine = {
+  text: string;
 };
 
 type OcrExtraction = Pick<
   VisitForm,
-  'nom' | 'prenom' | 'dateNaissance' | 'numeroDocument'
+  'nom' | 'prenom' | 'dateDelivrance' | 'numeroDocument'
 >;
 
 const normalizeText = (value: string) =>
   value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[|]/g, ' ')
+    .replace(/[|]/g, ':')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
+const cleanFieldValue = (value: string) =>
+  value
+    .replace(/^[:\-\s]+/, '')
     .replace(/\s+/g, ' ')
     .trim();
 
-const findLabeledValue = (text: string, label: string) => {
-  const regex = new RegExp(`${label}\\s*[:\\-]?\\s*([^\\n]+)`, 'i');
-  return text.match(regex)?.[1]?.trim() || '';
-};
+const toNormalizedLines = (blocks: OcrBlock[]) =>
+  blocks.flatMap(block =>
+    (block.lines || [])
+      .map(line => normalizeText(line.text))
+      .filter(Boolean),
+  );
 
-const findDate = (text: string) =>
-  text.match(/\b(\d{2}[/.-]\d{2}[/.-]\d{4})\b/)?.[1] || '';
+const findStrictLabeledValue = (lines: string[], labels: string[]) => {
+  const normalizedLabels = labels.map(label => normalizeText(label).toUpperCase());
 
-const findDocumentNumber = (text: string) => {
-  const cnibLine =
-    text.match(/\b(?:CNIB|NUI|NUMERO)[^\n:]*[:-]?\s*([A-Z0-9-]{5,})\b/i)?.[1] ||
-    '';
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const upperLine = line.toUpperCase();
 
-  if (cnibLine) {
-    return cnibLine;
+    for (const label of normalizedLabels) {
+      const inlineMatch = upperLine.match(
+        new RegExp(`^${label}\\b\\s*[:\\-]?\\s*(.+)$`, 'i'),
+      );
+
+      if (inlineMatch?.[1]) {
+        return cleanFieldValue(inlineMatch[1]);
+      }
+
+      const labelOnlyMatch = upperLine.match(new RegExp(`^${label}\\b\\s*[:\\-]?$`, 'i'));
+
+      if (labelOnlyMatch && lines[index + 1]) {
+        return cleanFieldValue(lines[index + 1]);
+      }
+    }
   }
 
-  const fallback = text.match(/\b([A-Z]{0,3}-?[A-Z0-9]{6,})\b/);
-  return fallback?.[1] || '';
+  return '';
 };
 
 const cleanPersonValue = (value: string) =>
   value
-    .replace(/[^A-Za-z\s'-]/g, ' ')
+    .replace(/[^A-Za-z\s'-]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
-const parseCnibText = (rawText: string): OcrExtraction => {
-  const normalized = normalizeText(rawText);
-  const upper = normalized.toUpperCase();
+const findDeliveryDate = (lines: string[]) => {
+  const candidate = findStrictLabeledValue(lines, [
+    'Delivree le',
+    'Delivree le',
+    'Delivre le',
+    'Date de delivrance',
+    'Date delivrance',
+  ]);
+  return candidate.match(/\b\d{2}[./-]\d{2}[./-]\d{4}\b/)?.[0] || '';
+};
 
-  const nom =
-    cleanPersonValue(findLabeledValue(upper, 'NOM')) ||
-    cleanPersonValue(findLabeledValue(upper, 'NAME'));
-  const prenom =
-    cleanPersonValue(findLabeledValue(upper, 'PRENOM')) ||
-    cleanPersonValue(findLabeledValue(upper, 'GIVEN NAME'));
-  const dateNaissance =
-    findLabeledValue(normalized, 'Date de naissance') ||
-    findLabeledValue(normalized, 'Ne le') ||
-    findDate(normalized);
-  const numeroDocument = findDocumentNumber(upper);
+const findCnibNumber = (lines: string[]) => {
+  const combined = lines.join(' ').toUpperCase();
+  return combined.match(/\b(B\d{7,})\b/)?.[1] || '';
+};
+
+const parseCnibText = (blocks: OcrBlock[]): OcrExtraction => {
+  const lines = toNormalizedLines(blocks);
+  const nom = cleanPersonValue(findStrictLabeledValue(lines, ['Nom'])).toUpperCase();
+  const prenom = cleanPersonValue(
+    findStrictLabeledValue(lines, ['Prenom', 'Prenoms']),
+  );
+  const dateDelivrance = findDeliveryDate(lines);
+  const numeroDocument = findCnibNumber(lines);
 
   return {
     nom,
     prenom,
-    dateNaissance,
+    dateDelivrance,
     numeroDocument,
   };
 };
@@ -102,5 +135,5 @@ export const scanCnib = async () => {
     throw new Error("Aucun texte n'a ete detecte sur la photo.");
   }
 
-  return parseCnibText(text);
+  return parseCnibText(blocks);
 };

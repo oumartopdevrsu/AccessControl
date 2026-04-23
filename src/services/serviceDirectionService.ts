@@ -7,6 +7,6 @@ export const getServiceDirections = async () => {
   const directions = Array.from(realm.objects('ServiceDirection').sorted('libelle'))
     .map(item => copyRealmObject<ServiceDirection>(item));
 
-  realm.close();
+  // realm.close();
   return directions;
 };

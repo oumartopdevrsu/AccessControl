@@ -22,7 +22,7 @@ import { todayInputValue } from '../utils/date';
 export function HistoryScreen() {
   const [directions, setDirections] = useState<ServiceDirection[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
-  const [dateFilter, setDateFilter] = useState(todayInputValue());
+  const [dateFilter, setDateFilter] = useState('');
   const [directionFilter, setDirectionFilter] = useState('ALL');
 
   const refreshData = useCallback(async () => {
@@ -97,8 +97,11 @@ export function HistoryScreen() {
           style={styles.input}
           value={dateFilter}
           onChangeText={setDateFilter}
-          placeholder="YYYY-MM-DD"
+          placeholder={todayInputValue()}
         />
+        <Text style={styles.filterHint}>
+          Laisse vide pour afficher toutes les visites enregistrees localement.
+        </Text>
 
         <Text style={styles.label}>Filtre service/direction</Text>
         <ServiceDirectionChips
@@ -127,9 +130,9 @@ export function HistoryScreen() {
               {directionByCode[visit.codeServiceDirection]?.libelle ||
                 visit.codeServiceDirection}
             </Text>
-            {!!visit.dateNaissance && (
+            {!!visit.dateDelivrance && (
               <Text style={styles.visitMeta}>
-                Date naissance: {visit.dateNaissance}
+                Date delivrance: {visit.dateDelivrance}
               </Text>
             )}
             <Text style={styles.visitMeta}>
@@ -158,7 +161,7 @@ export function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f6f7f9',
+    backgroundColor: '#eaf4ff',
   },
   content: {
     padding: 16,
@@ -175,61 +178,67 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   appName: {
-    color: '#14532d',
+    color: '#0f766e',
     fontSize: 13,
     fontWeight: '800',
   },
   title: {
-    color: '#111827',
+    color: '#0f172a',
     flex: 1,
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
   },
   section: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
+    backgroundColor: '#f8fbff',
+    borderRadius: 10,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#cfe3ff',
     gap: 10,
   },
   label: {
-    color: '#374151',
+    color: '#1e3a8a',
     fontSize: 13,
     fontWeight: '600',
   },
   input: {
     minHeight: 44,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
+    borderColor: '#bfdbfe',
+    borderRadius: 8,
     paddingHorizontal: 12,
-    color: '#111827',
+    color: '#0f172a',
     backgroundColor: '#ffffff',
+  },
+  filterHint: {
+    marginTop: -2,
+    color: '#64748b',
+    fontSize: 12,
   },
   dangerButton: {
     minHeight: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#b91c1c',
-    paddingHorizontal: 10,
+    borderColor: '#0284c7',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 12,
   },
   dangerButtonText: {
-    color: '#b91c1c',
+    color: '#0369a1',
     fontWeight: '800',
   },
   emptyText: {
-    color: '#6b7280',
+    color: '#475569',
     paddingVertical: 16,
     textAlign: 'center',
   },
   visitItem: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fbff',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
+    borderColor: '#cfe3ff',
+    borderRadius: 10,
     padding: 12,
     gap: 5,
   },
@@ -240,24 +249,24 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   visitName: {
-    color: '#111827',
+    color: '#0f172a',
     flex: 1,
     fontSize: 16,
     fontWeight: '800',
   },
   visitCode: {
-    color: '#14532d',
+    color: '#0f766e',
     fontSize: 12,
     fontWeight: '900',
   },
   visitMeta: {
-    color: '#4b5563',
+    color: '#334155',
     fontSize: 13,
   },
   smallButton: {
     alignSelf: 'flex-start',
-    borderRadius: 6,
-    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    backgroundColor: '#0f766e',
     marginTop: 6,
     paddingHorizontal: 10,
     paddingVertical: 8,
