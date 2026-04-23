@@ -11,3 +11,17 @@ export const formatTime = (date: Date) =>
     minute: '2-digit',
     second: '2-digit',
   });
+
+export const normalizeTimeInput = (value: string) => {
+  const trimmed = value.trim();
+
+  if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^\d{2}:\d{2}$/.test(trimmed)) {
+    return `${trimmed}:00`;
+  }
+
+  return null;
+};

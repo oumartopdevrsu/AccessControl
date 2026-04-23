@@ -12,7 +12,7 @@ import {
 import {ServiceDirectionChips} from '../components/ServiceDirectionChips';
 import {scanCnib} from '../services/ocrService';
 import {getServiceDirections} from '../services/serviceDirectionService';
-import {createVisit} from '../services/visitService';
+import {createVisit, MAX_MOTIF_LENGTH} from '../services/visitService';
 import {
   EMPTY_VISIT_FORM,
   ServiceDirection,
@@ -31,8 +31,11 @@ export function NewVisitScreen() {
       setDirections(nextDirections);
       setForm(current => ({
         ...current,
-        codeServiceDirection:
-          current.codeServiceDirection || nextDirections[0]?.code || '',
+        codeServiceDirection: nextDirections.some(
+          item => item.code === current.codeServiceDirection,
+        )
+          ? current.codeServiceDirection
+          : nextDirections[0]?.code || '',
       }));
     };
 
@@ -69,16 +72,28 @@ export function NewVisitScreen() {
         extracted.dateDelivrance && 'date de delivrance',
         extracted.numeroDocument && 'numero document',
       ].filter(Boolean);
+      const missingFields = [
+        !extracted.nom && 'nom',
+        !extracted.prenom && 'prenom',
+        !extracted.dateDelivrance && 'date de delivrance',
+        !extracted.numeroDocument && 'numero document',
+      ].filter(Boolean);
 
       if (extractedFields.length === 0) {
         setScanStatus(
           'Photo prise, mais les champs cibles de la CNIB n ont pas ete trouves.',
         );
+        Alert.alert(
+          'Scan CNIB',
+          "Le texte a ete lu, mais les champs attendus n'ont pas ete identifies correctement. Reprends la photo bien a plat, avec une bonne lumiere.",
+        );
         return;
       }
 
       setScanStatus(
-        `Scan termine : ${extractedFields.join(', ')} renseigne(s). Complete le genre et le contact manuellement.`,
+        missingFields.length > 0
+          ? `Scan partiel : ${extractedFields.join(', ')} trouve(s). A completer manuellement : ${missingFields.join(', ')}.`
+          : `Scan termine : ${extractedFields.join(', ')} renseigne(s). Complete le genre et le contact manuellement.`,
       );
     } catch (error) {
       const message =
@@ -142,8 +157,14 @@ export function NewVisitScreen() {
         />
         {directions.length === 0 && (
           <Text style={styles.helperText}>
-            Aucun service local. Reviens a l&apos;accueil pour charger les
-            services du backend.
+            Aucun service backend disponible. Reviens a l&apos;accueil pour
+            charger les services du backend.
+          </Text>
+        )}
+        {directions.length > 0 && (
+          <Text style={styles.helperText}>
+            Seuls les services synchronises avec le backend sont proposes pour
+            les nouvelles visites.
           </Text>
         )}
       </View>
@@ -263,8 +284,12 @@ export function NewVisitScreen() {
           value={form.motif}
           onChangeText={value => updateForm('motif', value)}
           placeholder="Optionnel"
+          maxLength={MAX_MOTIF_LENGTH}
           multiline
         />
+        <Text style={styles.helperText}>
+          {form.motif.length}/{MAX_MOTIF_LENGTH} caracteres maximum.
+        </Text>
 
         <Pressable style={styles.primaryButton} onPress={submitVisit}>
           <Text style={styles.primaryButtonText}>Enregistrer la visite</Text>

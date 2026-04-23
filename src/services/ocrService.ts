@@ -1,6 +1,6 @@
 import MlkitOcr from 'react-native-mlkit-ocr';
-import { launchCamera } from 'react-native-image-picker';
-import { VisitForm } from '../types/domain';
+import {launchCamera} from 'react-native-image-picker';
+import {VisitForm} from '../types/domain';
 
 type OcrBlock = {
   text: string;
@@ -11,18 +11,24 @@ type OcrLine = {
   text: string;
 };
 
-type OcrExtraction = Pick<
+export type OcrExtraction = Pick<
   VisitForm,
   'nom' | 'prenom' | 'dateDelivrance' | 'numeroDocument'
->;
+> & {
+  rawText: string;
+  debugLines: string[];
+};
 
 const normalizeText = (value: string) =>
   value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[|]/g, ':')
+    .replace(/[;]+/g, ':')
     .replace(/[ \t]+/g, ' ')
     .trim();
+
+const normalizeForCompare = (value: string) => normalizeText(value).toUpperCase();
 
 const cleanFieldValue = (value: string) =>
   value
@@ -30,33 +36,105 @@ const cleanFieldValue = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const toNormalizedLines = (blocks: OcrBlock[]) =>
-  blocks.flatMap(block =>
-    (block.lines || [])
+const splitBlockText = (value: string) =>
+  value
+    .split(/\r?\n/)
+    .map(line => normalizeText(line))
+    .filter(Boolean);
+
+const toNormalizedLines = (blocks: OcrBlock[]) => {
+  const lines = blocks.flatMap(block => {
+    const explicitLines = (block.lines || [])
       .map(line => normalizeText(line.text))
-      .filter(Boolean),
-  );
+      .filter(Boolean);
 
-const findStrictLabeledValue = (lines: string[], labels: string[]) => {
-  const normalizedLabels = labels.map(label => normalizeText(label).toUpperCase());
+    if (explicitLines.length > 0) {
+      return explicitLines;
+    }
 
+    return splitBlockText(block.text || '');
+  });
+
+  return Array.from(new Set(lines));
+};
+
+const LABEL_STOP_WORDS = [
+  'NOM',
+  'PRENOM',
+  'PRENOMS',
+  'NE LE',
+  'NEE LE',
+  'DELIVREE LE',
+  'DELIVRE LE',
+  'DATE DE DELIVRANCE',
+  'DATE DELIVRANCE',
+  'SEXE',
+  'GENRE',
+  'PROFESSION',
+  'CONTACT',
+  'ADRESSE',
+];
+
+const isAnotherLabelLine = (value: string) => {
+  const upper = normalizeForCompare(value);
+  return LABEL_STOP_WORDS.some(label => upper.startsWith(label));
+};
+
+const extractInlineValue = (line: string, label: string) => {
+  const upperLine = normalizeForCompare(line);
+  const upperLabel = normalizeForCompare(label);
+  const labelIndex = upperLine.indexOf(upperLabel);
+
+  if (labelIndex === -1) {
+    return '';
+  }
+
+  const remainder = line.slice(labelIndex + label.length);
+  return cleanFieldValue(remainder);
+};
+
+const collectCandidateValue = (lines: string[], index: number, label: string) => {
+  const inlineValue = extractInlineValue(lines[index], label);
+
+  if (inlineValue && inlineValue !== lines[index]) {
+    return inlineValue;
+  }
+
+  for (let offset = 1; offset <= 2; offset += 1) {
+    const nextLine = lines[index + offset];
+    if (!nextLine) {
+      break;
+    }
+    if (isAnotherLabelLine(nextLine)) {
+      break;
+    }
+
+    const cleaned = cleanFieldValue(nextLine);
+    if (cleaned) {
+      return cleaned;
+    }
+  }
+
+  return '';
+};
+
+const findLabeledValue = (lines: string[], labels: string[]) => {
   for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    const upperLine = line.toUpperCase();
+    const currentLine = lines[index];
+    const upperLine = normalizeForCompare(currentLine);
 
-    for (const label of normalizedLabels) {
-      const inlineMatch = upperLine.match(
-        new RegExp(`^${label}\\b\\s*[:\\-]?\\s*(.+)$`, 'i'),
-      );
+    for (const label of labels) {
+      const upperLabel = normalizeForCompare(label);
 
-      if (inlineMatch?.[1]) {
-        return cleanFieldValue(inlineMatch[1]);
-      }
-
-      const labelOnlyMatch = upperLine.match(new RegExp(`^${label}\\b\\s*[:\\-]?$`, 'i'));
-
-      if (labelOnlyMatch && lines[index + 1]) {
-        return cleanFieldValue(lines[index + 1]);
+      if (
+        upperLine.startsWith(upperLabel) ||
+        upperLine.includes(`${upperLabel}:`) ||
+        upperLine.includes(`${upperLabel} :`)
+      ) {
+        const candidate = collectCandidateValue(lines, index, label);
+        if (candidate) {
+          return candidate;
+        }
       }
     }
   }
@@ -66,32 +144,46 @@ const findStrictLabeledValue = (lines: string[], labels: string[]) => {
 
 const cleanPersonValue = (value: string) =>
   value
-    .replace(/[^A-Za-z\s'-]/g, '')
+    .replace(/[^A-Za-z\s'-]/g, ' ')
+    .replace(/\b(CNIB|CARTE|BURKINA|FASO|TAILLE|SEXE|NEE|NE|DELIVREE)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
+const pickBestName = (value: string, upper = false) => {
+  const cleaned = cleanPersonValue(value);
+  return upper ? cleaned.toUpperCase() : cleaned;
+};
+
 const findDeliveryDate = (lines: string[]) => {
-  const candidate = findStrictLabeledValue(lines, [
-    'Delivree le',
+  const candidate = findLabeledValue(lines, [
     'Delivree le',
     'Delivre le',
     'Date de delivrance',
     'Date delivrance',
+    'Nee le',
+    'Ne le',
   ]);
+
   return candidate.match(/\b\d{2}[./-]\d{2}[./-]\d{4}\b/)?.[0] || '';
 };
 
 const findCnibNumber = (lines: string[]) => {
-  const combined = lines.join(' ').toUpperCase();
-  return combined.match(/\b(B\d{7,})\b/)?.[1] || '';
+  const combined = normalizeForCompare(lines.join(' ')).replace(/\s+/g, '');
+  const rawMatch = combined.match(/\bB[0-9O]{7,}\b/);
+
+  if (!rawMatch) {
+    return '';
+  }
+
+  return rawMatch[0].replace(/O/g, '0');
 };
 
 const parseCnibText = (blocks: OcrBlock[]): OcrExtraction => {
   const lines = toNormalizedLines(blocks);
-  const nom = cleanPersonValue(findStrictLabeledValue(lines, ['Nom'])).toUpperCase();
-  const prenom = cleanPersonValue(
-    findStrictLabeledValue(lines, ['Prenom', 'Prenoms']),
-  );
+  const rawText = lines.join('\n');
+
+  const nom = pickBestName(findLabeledValue(lines, ['Nom']), true);
+  const prenom = pickBestName(findLabeledValue(lines, ['Prenom', 'Prenoms']));
   const dateDelivrance = findDeliveryDate(lines);
   const numeroDocument = findCnibNumber(lines);
 
@@ -100,6 +192,8 @@ const parseCnibText = (blocks: OcrBlock[]): OcrExtraction => {
     prenom,
     dateDelivrance,
     numeroDocument,
+    rawText,
+    debugLines: lines,
   };
 };
 
@@ -129,9 +223,9 @@ export const scanCnib = async () => {
   }
 
   const blocks = (await MlkitOcr.detectFromUri(imageUri)) as OcrBlock[];
-  const text = blocks.map(block => block.text).join('\n').trim();
+  const lines = toNormalizedLines(blocks);
 
-  if (!text) {
+  if (lines.length === 0) {
     throw new Error("Aucun texte n'a ete detecte sur la photo.");
   }
 

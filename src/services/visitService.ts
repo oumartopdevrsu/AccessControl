@@ -1,7 +1,7 @@
 import Realm from 'realm';
 import {getRealm} from '../database/realm';
 import {Visit, VisitForm} from '../types/domain';
-import {formatLocalDate, formatTime} from '../utils/date';
+import {formatLocalDate, formatTime, normalizeTimeInput} from '../utils/date';
 import {copyRealmObject} from '../utils/realm';
 import {apiRequest} from './api';
 import {syncServiceDirectionsFromBackend} from './serviceDirectionService';
@@ -36,21 +36,12 @@ type BulkSyncResponse = {
   results: SyncItemResult[];
 };
 
-const normalizeBackendTime = (value?: string | null) => {
-  if (!value) {
-    return undefined;
-  }
+export const MAX_MOTIF_LENGTH = 250;
 
-  if (/^\d{2}:\d{2}:\d{2}$/.test(value)) {
-    return value;
-  }
+const normalizeBackendTime = (value?: string | null) =>
+  normalizeTimeInput(value || '') || undefined;
 
-  if (/^\d{2}:\d{2}$/.test(value)) {
-    return `${value}:00`;
-  }
-
-  return value;
-};
+const sanitizeMotif = (value: string) => value.trim().slice(0, MAX_MOTIF_LENGTH);
 
 export const getVisits = async () => {
   const realm = await getRealm();
@@ -65,6 +56,7 @@ export const createVisit = async (form: VisitForm) => {
   const now = new Date();
   const id = `${now.getTime()}`;
   const realm = await getRealm();
+  const motif = sanitizeMotif(form.motif);
 
   realm.write(() => {
     realm.create('Visit', {
@@ -77,7 +69,7 @@ export const createVisit = async (form: VisitForm) => {
       dateDelivrance: form.dateDelivrance.trim(),
       numeroDocument: form.numeroDocument.trim(),
       contact: form.contact.trim(),
-      motif: form.motif.trim() || null,
+      motif: motif || null,
       codeServiceDirection: form.codeServiceDirection,
       date: formatLocalDate(now),
       heureEntree: formatTime(now),
@@ -98,6 +90,38 @@ export const closeVisit = async (visitId: string) => {
       );
     });
   }
+};
+
+export const updateVisitExitTime = async (visitId: string, nextTime: string) => {
+  const normalizedTime = normalizeTimeInput(nextTime);
+
+  if (!normalizedTime) {
+    throw new Error("Saisis l'heure au format HH:mm ou HH:mm:ss.");
+  }
+
+  const realm = await getRealm();
+  const visit = realm.objectForPrimaryKey('Visit', visitId);
+
+  if (!visit) {
+    throw new Error("La visite a modifier est introuvable.");
+  }
+
+  realm.write(() => {
+    (visit as unknown as {heureSortie: string}).heureSortie = normalizedTime;
+  });
+};
+
+export const deleteVisit = async (visitId: string) => {
+  const realm = await getRealm();
+  const visit = realm.objectForPrimaryKey('Visit', visitId);
+
+  if (!visit) {
+    return;
+  }
+
+  realm.write(() => {
+    realm.delete(visit);
+  });
 };
 
 const buildSyncPayload = async (visitIds: string[]): Promise<SyncPayloadItem[]> => {
@@ -129,7 +153,7 @@ const buildSyncPayload = async (visitIds: string[]): Promise<SyncPayloadItem[]> 
       date: visit.date,
       heureEntree: normalizeBackendTime(visit.heureEntree) || visit.heureEntree,
       heureSortie: normalizeBackendTime(visit.heureSortie),
-      motif: visit.motif || undefined,
+      motif: visit.motif ? sanitizeMotif(visit.motif) : undefined,
       serviceId: serverId,
       contact: visit.contact || undefined,
       mobileRef: visit.mobileRef,
@@ -153,6 +177,17 @@ export const syncSelectedVisits = async (visitIds: string[]) => {
   if (!currentUser?.token) {
     throw new Error(
       'Connecte-toi au serveur avant de synchroniser des visites.',
+    );
+  }
+
+  const visits = await getVisits();
+  const runningVisit = visits.find(
+    visit => visitIds.includes(visit.id) && !visit.heureSortie,
+  );
+
+  if (runningVisit) {
+    throw new Error(
+      `La visite de ${runningVisit.nom} ${runningVisit.prenom} est encore en cours. Marque d'abord la sortie pour enregistrer automatiquement l'heure de sortie.`,
     );
   }
 

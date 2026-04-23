@@ -11,7 +11,13 @@ import {
 import {useFocusEffect} from '@react-navigation/native';
 import {ServiceDirectionChips} from '../components/ServiceDirectionChips';
 import {getServiceDirections} from '../services/serviceDirectionService';
-import {closeVisit, getVisits, syncSelectedVisits} from '../services/visitService';
+import {
+  closeVisit,
+  deleteVisit,
+  getVisits,
+  syncSelectedVisits,
+  updateVisitExitTime,
+} from '../services/visitService';
 import {ServiceDirection, Visit} from '../types/domain';
 import {todayInputValue} from '../utils/date';
 
@@ -21,6 +27,8 @@ export function HistoryScreen() {
   const [dateFilter, setDateFilter] = useState('');
   const [directionFilter, setDirectionFilter] = useState('ALL');
   const [selectedVisitIds, setSelectedVisitIds] = useState<string[]>([]);
+  const [editingExitVisitId, setEditingExitVisitId] = useState<string | null>(null);
+  const [editingExitTime, setEditingExitTime] = useState('');
 
   const refreshData = useCallback(async () => {
     const [nextDirections, nextVisits] = await Promise.all([
@@ -60,11 +68,22 @@ export function HistoryScreen() {
   }, [dateFilter, directionFilter, visits]);
 
   const selectedCount = selectedVisitIds.length;
+  const syncableFilteredVisits = filteredVisits.filter(visit => !!visit.heureSortie);
   const allFilteredSelected =
-    filteredVisits.length > 0 &&
-    filteredVisits.every(visit => selectedVisitIds.includes(visit.id));
+    syncableFilteredVisits.length > 0 &&
+    syncableFilteredVisits.every(visit => selectedVisitIds.includes(visit.id));
 
   const toggleVisitSelection = (visitId: string) => {
+    const visit = visits.find(item => item.id === visitId);
+
+    if (visit && !visit.heureSortie) {
+      Alert.alert(
+        'Synchronisation',
+        "Cette visite est encore en cours. Appuie sur 'Marquer la sortie' pour enregistrer automatiquement l'heure de sortie avant l'envoi.",
+      );
+      return;
+    }
+
     setSelectedVisitIds(current =>
       current.includes(visitId)
         ? current.filter(id => id !== visitId)
@@ -73,23 +92,82 @@ export function HistoryScreen() {
   };
 
   const toggleSelectAllFiltered = () => {
+    if (syncableFilteredVisits.length === 0) {
+      Alert.alert(
+        'Synchronisation',
+        "Aucune visite terminee dans ce filtre. Marque d'abord les sorties pour pouvoir envoyer.",
+      );
+      return;
+    }
+
     if (allFilteredSelected) {
       setSelectedVisitIds(current =>
-        current.filter(id => !filteredVisits.some(visit => visit.id === id)),
+        current.filter(
+          id => !syncableFilteredVisits.some(visit => visit.id === id),
+        ),
       );
       return;
     }
 
     setSelectedVisitIds(current => {
       const merged = new Set(current);
-      filteredVisits.forEach(visit => merged.add(visit.id));
+      syncableFilteredVisits.forEach(visit => merged.add(visit.id));
       return Array.from(merged);
     });
   };
 
   const markExit = async (visitId: string) => {
     await closeVisit(visitId);
+    setEditingExitVisitId(null);
+    setEditingExitTime('');
     await refreshData();
+  };
+
+  const startEditExitTime = (visit: Visit) => {
+    setEditingExitVisitId(visit.id);
+    setEditingExitTime(visit.heureSortie || '');
+  };
+
+  const cancelEditExitTime = () => {
+    setEditingExitVisitId(null);
+    setEditingExitTime('');
+  };
+
+  const saveExitTime = async (visitId: string) => {
+    try {
+      await updateVisitExitTime(visitId, editingExitTime);
+      cancelEditExitTime();
+      await refreshData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Erreur de mise a jour.';
+      Alert.alert('Heure de sortie', message);
+    }
+  };
+
+  const confirmDeleteVisit = (visit: Visit) => {
+    Alert.alert(
+      'Supprimer la visite',
+      `Supprimer localement la visite de ${visit.nom} ${visit.prenom} ?`,
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteVisit(visit.id);
+            setSelectedVisitIds(current => current.filter(id => id !== visit.id));
+            if (editingExitVisitId === visit.id) {
+              cancelEditExitTime();
+            }
+            await refreshData();
+          },
+        },
+      ],
+    );
   };
 
   const syncVisits = async () => {
@@ -159,6 +237,9 @@ export function HistoryScreen() {
               : 'Selectionner tout le filtre'}
           </Text>
         </Pressable>
+        <Text style={styles.filterHint}>
+          Seules les visites avec heure de sortie peuvent etre synchronisees.
+        </Text>
       </View>
 
       {filteredVisits.length === 0 ? (
@@ -166,12 +247,15 @@ export function HistoryScreen() {
       ) : (
         filteredVisits.map(visit => {
           const isSelected = selectedVisitIds.includes(visit.id);
+          const canSyncVisit = !!visit.heureSortie;
+          const isEditingExit = editingExitVisitId === visit.id;
           return (
             <View key={visit.id} style={styles.visitItem}>
               <View style={styles.visitHeader}>
                 <Pressable
                   style={[
                     styles.checkbox,
+                    !canSyncVisit && styles.checkboxDisabled,
                     isSelected && styles.checkboxSelected,
                   ]}
                   onPress={() => toggleVisitSelection(visit.id)}>
@@ -212,14 +296,61 @@ export function HistoryScreen() {
                 {visit.date} | Entree: {visit.heureEntree} | Sortie:{' '}
                 {visit.heureSortie || 'en cours'}
               </Text>
+              {!visit.heureSortie && (
+                <Text style={styles.pendingText}>
+                  Visite en cours: la sortie sera enregistree automatiquement au
+                  moment du clic sur le bouton ci-dessous.
+                </Text>
+              )}
               {!!visit.motif && <Text style={styles.visitMeta}>{visit.motif}</Text>}
 
               {!visit.heureSortie && (
                 <Pressable
                   style={styles.smallButton}
                   onPress={() => markExit(visit.id)}>
-                  <Text style={styles.smallButtonText}>Marquer la sortie</Text>
+                  <Text style={styles.smallButtonText}>
+                    Marquer la sortie maintenant
+                  </Text>
                 </Pressable>
+              )}
+
+              {!!visit.heureSortie && !isEditingExit && (
+                <View style={styles.actionRow}>
+                  <Pressable
+                    style={styles.editButton}
+                    onPress={() => startEditExitTime(visit)}>
+                    <Text style={styles.editButtonText}>Modifier la sortie</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.deleteButton}
+                    onPress={() => confirmDeleteVisit(visit)}>
+                    <Text style={styles.deleteButtonText}>Supprimer</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {isEditingExit && (
+                <View style={styles.editBox}>
+                  <Text style={styles.label}>Nouvelle heure de sortie</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editingExitTime}
+                    onChangeText={setEditingExitTime}
+                    placeholder="HH:mm ou HH:mm:ss"
+                  />
+                  <View style={styles.editActions}>
+                    <Pressable
+                      style={styles.editCancelButton}
+                      onPress={cancelEditExitTime}>
+                      <Text style={styles.editCancelButtonText}>Annuler</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.editSaveButton}
+                      onPress={() => saveExitTime(visit.id)}>
+                      <Text style={styles.editSaveButtonText}>Enregistrer</Text>
+                    </Pressable>
+                  </View>
+                </View>
               )}
             </View>
           );
@@ -345,6 +476,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f766e',
     borderColor: '#0f766e',
   },
+  checkboxDisabled: {
+    opacity: 0.45,
+  },
   checkboxText: {
     color: '#eff6ff',
     fontWeight: '900',
@@ -375,6 +509,11 @@ const styles = StyleSheet.create({
     color: '#334155',
     fontSize: 13,
   },
+  pendingText: {
+    color: '#b45309',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   smallButton: {
     alignSelf: 'flex-start',
     borderRadius: 8,
@@ -384,6 +523,77 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   smallButtonText: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  editButton: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#0284c7',
+    backgroundColor: '#eff6ff',
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  editButtonText: {
+    color: '#0369a1',
+    fontWeight: '700',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  deleteButton: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteButtonText: {
+    color: '#b91c1c',
+    fontWeight: '700',
+  },
+  editBox: {
+    marginTop: 8,
+    gap: 8,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+  },
+  editActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  editCancelButton: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e2e8f0',
+  },
+  editCancelButtonText: {
+    color: '#334155',
+    fontWeight: '700',
+  },
+  editSaveButton: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0f766e',
+  },
+  editSaveButtonText: {
     color: '#ffffff',
     fontWeight: '700',
   },

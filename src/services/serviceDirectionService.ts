@@ -14,11 +14,13 @@ type BackendServiceDirection = {
 
 export const getServiceDirections = async () => {
   const realm = await getRealm();
-  const directions = Array.from(
+  const allDirections = Array.from(
     realm.objects('ServiceDirection').sorted('libelle'),
   ).map(item => copyRealmObject<ServiceDirection>(item));
 
-  return directions;
+  const backendDirections = allDirections.filter(item => !!item.serverId);
+
+  return backendDirections.length > 0 ? backendDirections : allDirections;
 };
 
 export const syncServiceDirectionsFromBackend = async () => {
@@ -38,6 +40,7 @@ export const syncServiceDirectionsFromBackend = async () => {
   );
 
   const realm = await getRealm();
+  const remoteCodes = new Set(remoteServices.map(item => item.code));
 
   realm.write(() => {
     remoteServices.forEach(item => {
@@ -52,6 +55,19 @@ export const syncServiceDirectionsFromBackend = async () => {
         Realm.UpdateMode.Modified,
       );
     });
+
+    realm
+      .objects('ServiceDirection')
+      .forEach(service => {
+        const code = (service as unknown as {code: string}).code;
+        const isRemote = remoteCodes.has(code);
+
+        (service as unknown as {active: boolean}).active = isRemote;
+
+        if (!isRemote) {
+          (service as unknown as {serverId: number | null}).serverId = null;
+        }
+      });
   });
 
   return remoteServices.length;

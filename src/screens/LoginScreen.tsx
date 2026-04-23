@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -30,11 +31,11 @@ export function LoginScreen({loading = false, onSubmit}: Props) {
         <View style={styles.container}>
           <View style={styles.hero}>
             <View style={styles.logoShell}>
-              <View style={styles.logoRing}>
-                <View style={styles.logoCore}>
-                  <Text style={styles.logoText}>RSU</Text>
-                </View>
-              </View>
+              <Image
+                source={require('../assets/images/rsu-logo.jpeg')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.appName}>Access Control RSU</Text>
             <Text style={styles.subtitle}>
@@ -53,36 +54,38 @@ export function LoginScreen({loading = false, onSubmit}: Props) {
               </Text>
             </View>
 
-            <Text style={styles.label}>Nom d&apos;utilisateur</Text>
-            <TextInput
-              style={styles.input}
-              value={username}
-              autoCapitalize="none"
-              onChangeText={setUsername}
-              placeholder="admin"
-              placeholderTextColor="#94a3b8"
-            />
+            <View style={styles.formBody}>
+              <Text style={styles.label}>Nom d&apos;utilisateur</Text>
+              <TextInput
+                style={styles.input}
+                value={username}
+                autoCapitalize="none"
+                onChangeText={setUsername}
+                placeholder="admin"
+                placeholderTextColor="#94a3b8"
+              />
 
-            <Text style={styles.label}>Mot de passe</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              secureTextEntry
-              onChangeText={setPassword}
-              placeholder="admin"
-              placeholderTextColor="#94a3b8"
-            />
+              <Text style={styles.label}>Mot de passe</Text>
+              <TextInput
+                style={styles.input}
+                value={password}
+                secureTextEntry
+                onChangeText={setPassword}
+                placeholder="admin"
+                placeholderTextColor="#94a3b8"
+              />
 
-            <Pressable
-              style={[styles.button, loading && styles.buttonDisabled]}
-              disabled={loading}
-              onPress={() => onSubmit(username, password)}>
-              {loading ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text style={styles.buttonText}>Se connecter</Text>
-              )}
-            </Pressable>
+              <Pressable
+                style={[styles.button, loading && styles.buttonDisabled]}
+                disabled={loading}
+                onPress={() => onSubmit(username, password)}>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.buttonText}>Se connecter</Text>
+                )}
+              </Pressable>
+            </View>
 
             <View style={styles.infoBox}>
               <Text style={styles.infoTitle}>Connexion mobile</Text>
@@ -112,51 +115,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    alignItems: 'center',
+    paddingHorizontal: 18,
     paddingVertical: 28,
     backgroundColor: '#eaf4ff',
-    gap: 32,
+    gap: 24,
   },
   hero: {
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+    width: '100%',
+    maxWidth: 420,
   },
   logoShell: {
-    width: 144,
-    height: 144,
-    borderRadius: 72,
+    width: 132,
+    height: 132,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#d9f2ff',
+    backgroundColor: '#f8fbff',
     borderWidth: 1,
-    borderColor: '#9bd5ff',
+    borderColor: '#bfdbfe',
+    padding: 14,
   },
-  logoRing: {
-    width: 118,
-    height: 118,
-    borderRadius: 59,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ecfeff',
-    borderWidth: 3,
-    borderColor: '#38bdf8',
-  },
-  logoCore: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0f766e',
-  },
-  logoText: {
-    color: '#ffffff',
-    fontSize: 30,
-    fontWeight: '900',
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   appName: {
     color: '#0f172a',
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '800',
     textAlign: 'center',
   },
@@ -172,12 +160,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   card: {
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
     borderRadius: 14,
     backgroundColor: '#f8fbff',
     borderWidth: 1,
     borderColor: '#cfe3ff',
-    padding: 18,
-    gap: 14,
+    padding: 16,
+    gap: 12,
     shadowColor: '#0f172a',
     shadowOffset: {
       width: 0,
@@ -188,17 +179,20 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardHeader: {
-    gap: 4,
+    gap: 2,
     marginBottom: 2,
   },
   cardTitle: {
     color: '#0f172a',
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
   },
   cardText: {
     color: '#475569',
-    fontSize: 13,
+    fontSize: 12,
+  },
+  formBody: {
+    gap: 12,
   },
   label: {
     color: '#1e3a8a',
@@ -216,7 +210,7 @@ const styles = StyleSheet.create({
   },
   button: {
     minHeight: 48,
-    marginTop: 6,
+    marginTop: 8,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
