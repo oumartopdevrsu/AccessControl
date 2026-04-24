@@ -1,4 +1,15 @@
-import React, { useState } from 'react';
+/**
+ * Écran de connexion.
+ *
+ * Stratégie d'authentification :
+ *  1. Tente la connexion via le backend (token JWT).
+ *  2. En cas d'échec réseau, bascule sur l'authentification locale (Realm).
+ *
+ * Aucune logique d'authentification ici — tout est délégué au parent (App.tsx)
+ * via le callback onSubmit.
+ */
+
+import React, {useState} from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -11,9 +22,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import {Colors, FontSize, Radius, Shadows, Spacing} from '../theme';
 
 type Props = {
+  /** Indicateur de chargement pendant la requête de connexion */
   loading?: boolean;
+  /** Appelé quand l'utilisateur soumet le formulaire */
   onSubmit: (username: string, password: string) => Promise<void>;
 };
 
@@ -23,81 +37,94 @@ export function LoginScreen({loading = false, onSubmit}: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardShell}
+      style={styles.shell}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled">
-        <View style={styles.container}>
-          <View style={styles.hero}>
-            <View style={styles.logoShell}>
-              <Image
-                source={require('../assets/images/rsu-logo.jpeg')}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.appName}>Access Control RSU</Text>
-            <Text style={styles.subtitle}>
-              Enregistrement et historique des visites
-            </Text>
-            <Text style={styles.helperCaption}>
-              Connexion locale requise avant d&apos;acceder a l&apos;application
-            </Text>
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+
+        {/* ── En-tête coloré avec logo RSU ── */}
+        <View style={styles.header}>
+          <View style={styles.logoWrap}>
+            <Image
+              source={require('../assets/images/rsu-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
 
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Connexion</Text>
-              <Text style={styles.cardText}>
-                Saisis ton compte local pour continuer.
-              </Text>
-            </View>
+          <Text style={styles.appTitle}>Registre Social Unique</Text>
+          <Text style={styles.appSubtitle}>Contrôle d'Accès</Text>
 
-            <View style={styles.formBody}>
-              <Text style={styles.label}>Nom d&apos;utilisateur</Text>
+          {/* Mini-drapeau Burkina Faso (rouge / vert) */}
+          <View style={styles.flagBand}>
+            <View style={[styles.flagStripe, {backgroundColor: Colors.flagRed}]} />
+            <View style={[styles.flagStripe, {backgroundColor: Colors.flagGreen}]} />
+          </View>
+        </View>
+
+        {/* ── Carte formulaire de connexion ── */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Connexion</Text>
+          <Text style={styles.cardSubtitle}>
+            Identifie-toi pour accéder à l'application.
+          </Text>
+
+          <View style={styles.form}>
+            {/* Champ nom d'utilisateur */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Nom d'utilisateur</Text>
               <TextInput
                 style={styles.input}
                 value={username}
                 autoCapitalize="none"
+                autoCorrect={false}
                 onChangeText={setUsername}
                 placeholder="admin"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={Colors.textMuted}
+                returnKeyType="next"
               />
+            </View>
 
+            {/* Champ mot de passe */}
+            <View style={styles.fieldGroup}>
               <Text style={styles.label}>Mot de passe</Text>
               <TextInput
                 style={styles.input}
                 value={password}
                 secureTextEntry
                 onChangeText={setPassword}
-                placeholder="admin"
-                placeholderTextColor="#94a3b8"
+                placeholder="••••••••"
+                placeholderTextColor={Colors.textMuted}
+                returnKeyType="done"
+                onSubmitEditing={() => onSubmit(username, password)}
               />
-
-              <Pressable
-                style={[styles.button, loading && styles.buttonDisabled]}
-                disabled={loading}
-                onPress={() => onSubmit(username, password)}>
-                {loading ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={styles.buttonText}>Se connecter</Text>
-                )}
-              </Pressable>
             </View>
 
-            <View style={styles.infoBox}>
-              <Text style={styles.infoTitle}>Connexion mobile</Text>
-              <Text style={styles.helperText}>
-                Premiere connexion: le compte doit exister sur le backend.
-              </Text>
-              <Text style={styles.helperText}>
-                Ensuite, les informations de connexion peuvent etre reutilisees
-                hors ligne.
-              </Text>
-            </View>
+            {/* Bouton de connexion */}
+            <Pressable
+              style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
+              disabled={loading}
+              onPress={() => onSubmit(username, password)}>
+              {loading ? (
+                <ActivityIndicator size="small" color={Colors.textOnPrimary} />
+              ) : (
+                <Text style={styles.loginBtnText}>Se connecter</Text>
+              )}
+            </Pressable>
           </View>
+
+          {/* Information sur le mode hors ligne 
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>ℹ  Mode hors ligne</Text>
+            <Text style={styles.infoText}>
+              Première connexion : le compte doit exister sur le backend.
+            </Text>
+            <Text style={styles.infoText}>
+              Les connexions suivantes fonctionnent sans réseau.
+            </Text>
+          </View>*/}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -105,140 +132,145 @@ export function LoginScreen({loading = false, onSubmit}: Props) {
 }
 
 const styles = StyleSheet.create({
-  keyboardShell: {
+  shell: {
     flex: 1,
-    backgroundColor: '#eaf4ff',
+    backgroundColor: Colors.background,
   },
-  scrollContent: {
+  scroll: {
     flexGrow: 1,
   },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
+
+  // ── En-tête bleu marine avec logo ──────────────────────────────────────────
+  header: {
+    backgroundColor: Colors.primaryDark,
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 28,
-    backgroundColor: '#eaf4ff',
-    gap: 24,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.xl + Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
   },
-  hero: {
-    alignItems: 'center',
-    gap: 8,
-    width: '100%',
-    maxWidth: 420,
-  },
-  logoShell: {
-    width: 132,
-    height: 132,
-    borderRadius: 24,
+  logoWrap: {
+    width: 144,
+    height: 144,
+    borderRadius: Radius.xl,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8fbff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    padding: 14,
+    padding: Spacing.sm,
+    ...Shadows.lg,
   },
-  logoImage: {
+  logo: {
     width: '100%',
     height: '100%',
   },
-  appName: {
-    color: '#0f172a',
-    fontSize: 28,
+  appTitle: {
+    color: Colors.textOnPrimary,
+    fontSize: FontSize.xl,
     fontWeight: '800',
     textAlign: 'center',
+    marginTop: Spacing.sm,
   },
-  subtitle: {
-    color: '#0369a1',
-    fontSize: 16,
-    fontWeight: '700',
+  appSubtitle: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: FontSize.md,
+    fontWeight: '600',
     textAlign: 'center',
   },
-  helperCaption: {
-    color: '#475569',
-    fontSize: 13,
-    textAlign: 'center',
+  // Mini-drapeau décoratif
+  flagBand: {
+    flexDirection: 'row',
+    width: 44,
+    height: 5,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+    marginTop: Spacing.xs,
   },
+  flagStripe: {
+    flex: 1,
+  },
+
+  // ── Carte formulaire ────────────────────────────────────────────────────────
   card: {
-    width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-    borderRadius: 14,
-    backgroundColor: '#f8fbff',
-    borderWidth: 1,
-    borderColor: '#cfe3ff',
-    padding: 16,
-    gap: 12,
-    shadowColor: '#0f172a',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
-  },
-  cardHeader: {
-    gap: 2,
-    marginBottom: 2,
+    backgroundColor: Colors.surface,
+    // Chevauchement avec l'en-tête pour un effet de feuille
+    borderTopLeftRadius:  Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    marginTop: -Radius.xl,
+    flex: 1,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxl,
+    gap: Spacing.lg,
+    ...Shadows.lg,
   },
   cardTitle: {
-    color: '#0f172a',
-    fontSize: 18,
+    color: Colors.textPrimary,
+    fontSize: FontSize.xxl,
     fontWeight: '800',
   },
-  cardText: {
-    color: '#475569',
-    fontSize: 12,
+  cardSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    marginTop: -Spacing.md,
   },
-  formBody: {
-    gap: 12,
+
+  // ── Formulaire ──────────────────────────────────────────────────────────────
+  form: {
+    gap: Spacing.md,
+  },
+  fieldGroup: {
+    gap: Spacing.xs,
   },
   label: {
-    color: '#1e3a8a',
-    fontSize: 13,
+    color: Colors.navy,
+    fontSize: FontSize.sm,
     fontWeight: '700',
   },
   input: {
-    minHeight: 46,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-    borderRadius: 10,
-    backgroundColor: '#ffffff',
-    color: '#0f172a',
-    paddingHorizontal: 12,
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.background,
+    color: Colors.textPrimary,
+    paddingHorizontal: Spacing.md,
+    fontSize: FontSize.md,
   },
-  button: {
-    minHeight: 48,
-    marginTop: 8,
-    borderRadius: 10,
+  loginBtn: {
+    height: 54,
+    marginTop: Spacing.xs,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0f766e',
+    backgroundColor: Colors.primary,
+    ...Shadows.md,
   },
-  buttonDisabled: {
-    opacity: 0.75,
+  loginBtnDisabled: {
+    opacity: 0.70,
   },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 15,
+  loginBtnText: {
+    color: Colors.textOnPrimary,
+    fontSize: FontSize.md,
     fontWeight: '800',
+    letterSpacing: 0.4,
   },
+
+  // ── Note informative ────────────────────────────────────────────────────────
   infoBox: {
-    borderRadius: 12,
-    backgroundColor: '#ecfeff',
+    borderRadius: Radius.md,
+    backgroundColor: Colors.infoBg,
     borderWidth: 1,
-    borderColor: '#99f6e4',
-    padding: 12,
-    gap: 4,
+    borderColor: Colors.infoBorder,
+    padding: Spacing.md,
+    gap: Spacing.xs,
   },
   infoTitle: {
-    color: '#0f766e',
-    fontSize: 13,
+    color: Colors.info,
+    fontSize: FontSize.sm,
     fontWeight: '800',
   },
-  helperText: {
-    color: '#64748b',
-    fontSize: 12,
+  infoText: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.xs,
+    lineHeight: 17,
   },
 });

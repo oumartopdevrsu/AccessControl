@@ -1,6 +1,7 @@
 import MlkitOcr from 'react-native-mlkit-ocr';
 import {launchCamera} from 'react-native-image-picker';
 import {VisitForm} from '../types/domain';
+import { Alert } from 'react-native';
 
 type OcrBlock = {
   text: string;
@@ -13,7 +14,7 @@ type OcrLine = {
 
 export type OcrExtraction = Pick<
   VisitForm,
-  'nom' | 'prenom' | 'dateDelivrance' | 'numeroDocument'
+  'nom' | 'prenom' | 'dateDelivrance' | 'numeroDocument' | 'genre'
 > & {
   rawText: string;
   debugLines: string[];
@@ -167,31 +168,68 @@ const findDeliveryDate = (lines: string[]) => {
   return candidate.match(/\b\d{2}[./-]\d{2}[./-]\d{4}\b/)?.[0] || '';
 };
 
-const findCnibNumber = (lines: string[]) => {
-  const combined = normalizeForCompare(lines.join(' ')).replace(/\s+/g, '');
-  const rawMatch = combined.match(/\bB[0-9O]{7,}\b/);
 
-  if (!rawMatch) {
-    return '';
-  }
-
-  return rawMatch[0].replace(/O/g, '0');
-};
 
 const parseCnibText = (blocks: OcrBlock[]): OcrExtraction => {
   const lines = toNormalizedLines(blocks);
+   var numeroDocument ="";
+        var nom="";
+        var prenom="";
+        var dateDelivrance="";
+        var genre:any="";
+
+    if(lines[0].includes("CARTE NATIONALE D'IDENTITE BURKINABE")){
+         numeroDocument = lines[lines.length - 1].toUpperCase().replace(',', '');
+       
+
+        for (let index = 0; index < lines.length; index++) {
+          let element = lines[index];
+          element= element.replace(/:/g, '');
+          if(element.includes("Nom")){
+             nom=element.split(" ")[1].toUpperCase();
+  
+          }
+  
+          if(element.includes("Prénoms") || element.includes("Prenoms")){
+            prenom=element.split(" ")[1].toUpperCase();
+          }
+
+          if(element.includes("Sexe") || element.includes("Genre")){
+            const sexeVal = element.split(" ")[1]?.toUpperCase();
+            if(sexeVal === 'M' || sexeVal === 'F') genre = sexeVal;
+          }
+
+          if(element.includes("Expire le") || element.includes("Expire Le")) {
+            const inline = element.replace(/Expire [Ll]e/i, '').trim();
+            const inlineMatch = inline.match(/\b\d{2}[.\/\-]\d{2}[.\/\-]\d{4}\b/);
+            if(inlineMatch) {
+              dateDelivrance = inlineMatch[0];
+            } else {
+              const nextLine = lines[index + 1];
+              if(nextLine) {
+                const nextMatch = nextLine.match(/\b\d{2}[.\/\-]\d{2}[.\/\-]\d{4}\b/);
+                if(nextMatch) dateDelivrance = nextMatch[0];
+              }
+            }
+          }
+  }
+       
+      }else{
+        Alert.alert("Echec de lecture du document"," veuillez reessayer ou saisir les informations")
+      }
   const rawText = lines.join('\n');
 
-  const nom = pickBestName(findLabeledValue(lines, ['Nom']), true);
-  const prenom = pickBestName(findLabeledValue(lines, ['Prenom', 'Prenoms']));
-  const dateDelivrance = findDeliveryDate(lines);
-  const numeroDocument = findCnibNumber(lines);
+  //const nom = pickBestName(findLabeledValue(lines, ['Nom']), true);
+  //const prenom = pickBestName(findLabeledValue(lines, ['Prenom', 'Prenoms']));
+  //const dateDelivrance = findDeliveryDate(lines);
+  //const numeroDocument = findCnibNumber(lines);
 
   return {
     nom,
     prenom,
     dateDelivrance,
     numeroDocument,
+    genre,
     rawText,
     debugLines: lines,
   };
@@ -224,6 +262,9 @@ export const scanCnib = async () => {
 
   const blocks = (await MlkitOcr.detectFromUri(imageUri)) as OcrBlock[];
   const lines = toNormalizedLines(blocks);
+
+ 
+  console.log('Texte OCR brut :', lines);
 
   if (lines.length === 0) {
     throw new Error("Aucun texte n'a ete detecte sur la photo.");

@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://10.10.20.228:8080';
+const API_BASE_URL = 'http://172.20.10.2:8080';
 
 type ApiRequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH';

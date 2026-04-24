@@ -1,29 +1,41 @@
+/**
+ * Écran d'accueil (tableau de bord).
+ *
+ * Fonctionnalités :
+ *  - Raccourcis vers les deux actions principales (Nouvelle visite / Historique).
+ *  - Bouton de chargement des services depuis le backend.
+ *  - Affichage de l'URL du backend configuré.
+ */
+
 import React, {useState} from 'react';
 import {
   ActivityIndicator,
   Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import {RootTabParamList} from '../navigation/AppNavigator';
-import {syncServiceDirectionsFromBackend} from '../services/serviceDirectionService';
 import {getApiBaseUrl} from '../services/api';
+import {syncServiceDirectionsFromBackend} from '../services/serviceDirectionService';
+import {Colors, FontSize, Radius, Shadows, Spacing} from '../theme';
 
 type Props = BottomTabScreenProps<RootTabParamList, 'Home'>;
 
 export function HomeScreen({navigation}: Props) {
   const [loadingServices, setLoadingServices] = useState(false);
 
+  /** Charge les services/directions depuis le backend et les sauvegarde en local */
   const handleSyncServices = async () => {
     try {
       setLoadingServices(true);
       const total = await syncServiceDirectionsFromBackend();
       Alert.alert(
-        'Services charges',
-        `${total} service(s) ou direction(s) ont ete recuperes depuis le backend.`,
+        'Services chargés',
+        `${total} service(s) ou direction(s) récupérés depuis le backend.`,
       );
     } catch (error) {
       const message =
@@ -35,181 +47,268 @@ export function HomeScreen({navigation}: Props) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Access Control RSU</Text>
-        <Text style={styles.title}>Bienvenue</Text>
-        <Text style={styles.subtitle}>
-          Choisis une action pour commencer la gestion des visites.
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}>
+
+      {/* ── Bannière de bienvenue ── */}
+      <View style={styles.banner}>
+        <Text style={styles.bannerEyebrow}>RSU — Contrôle d'Accès</Text>
+        <Text style={styles.bannerTitle}>Bienvenue</Text>
+        <Text style={styles.bannerSubtitle}>
+          Gérez les visites, scannez les CNIB et synchronisez les données.
         </Text>
       </View>
 
-      <View style={styles.actions}>
+      {/* ── Actions rapides ── */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Actions rapides</Text>
+
+        {/* Carte Nouvelle Visite (fond bleu primaire) */}
         <Pressable
-          style={[styles.actionCard, styles.primaryCard]}
+          style={[styles.actionCard, styles.actionCardPrimary]}
           onPress={() => navigation.navigate('NewVisit')}>
-          <Text style={[styles.cardIcon, styles.primaryCardIcon]}>+</Text>
-          <Text style={[styles.cardTitle, styles.primaryCardTitle]}>
-            Ajouter une visite
-          </Text>
-          <Text style={[styles.cardText, styles.primaryCardText]}>
-            Enregistrer une nouvelle entree avec scan CNIB et stockage local.
-          </Text>
+          <View style={styles.actionIcon}>
+            <Text style={styles.actionIconText}>⊕</Text>
+          </View>
+          <View style={styles.actionBody}>
+            <Text style={styles.actionTitleLight}>Nouvelle visite</Text>
+            <Text style={styles.actionDescLight}>
+              Enregistrer une entrée avec scan CNIB
+            </Text>
+          </View>
+          <Text style={styles.actionArrowLight}>›</Text>
         </Pressable>
 
+        {/* Carte Historique (fond blanc avec bordure) */}
         <Pressable
-          style={[styles.actionCard, styles.secondaryCard]}
+          style={[styles.actionCard, styles.actionCardSecondary]}
           onPress={() => navigation.navigate('History')}>
-          <Text style={[styles.cardIcon, styles.secondaryCardIcon]}>H</Text>
-          <Text style={[styles.cardTitle, styles.secondaryCardTitle]}>
-            Consulter l&apos;historique
-          </Text>
-          <Text style={[styles.cardText, styles.secondaryCardText]}>
-            Retrouver les visites, filtrer par date et choisir celles a
-            synchroniser.
-          </Text>
+          <View style={[styles.actionIcon, styles.actionIconOutline]}>
+            <Text style={[styles.actionIconText, {color: Colors.primary}]}>☰</Text>
+          </View>
+          <View style={styles.actionBody}>
+            <Text style={styles.actionTitleDark}>Historique des visites</Text>
+            <Text style={styles.actionDescDark}>
+              Filtrer, modifier et synchroniser
+            </Text>
+          </View>
+          <Text style={styles.actionArrowDark}>›</Text>
         </Pressable>
       </View>
 
-      <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>Backend</Text>
-        <Text style={styles.infoText}>{getApiBaseUrl()}</Text>
-        <Pressable
-          style={[
-            styles.syncButton,
-            loadingServices && styles.syncButtonDisabled,
-          ]}
-          disabled={loadingServices}
-          onPress={handleSyncServices}>
-          {loadingServices ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <Text style={styles.syncButtonText}>Charger les services</Text>
-          )}
-        </Pressable>
+      {/* ── Configuration backend ── */}
+      <View style={styles.section}>
+       {
+        /* <Text style={styles.sectionLabel}>Backend</Text>
+        <View style={styles.backendRow}>
+            <View style={styles.statusDot} />
+            <Text style={styles.backendUrl} numberOfLines={1}>
+              {getApiBaseUrl()}
+            </Text>
+          </View>
+        */
+       } 
+
+        <View style={styles.backendCard}>
+          {/* URL du serveur avec indicateur de connexion */}
+          
+
+          {/* Chargement des services depuis le backend */}
+          <Pressable
+            style={[styles.syncBtn, loadingServices && styles.syncBtnDisabled]}
+            disabled={loadingServices}
+            onPress={handleSyncServices}>
+            {loadingServices ? (
+              <ActivityIndicator size="small" color={Colors.textOnPrimary} />
+            ) : (
+              <Text style={styles.syncBtnText}>Charger les services</Text>
+            )}
+          </Pressable>
+        </View>
       </View>
 
-      <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>Mode hors ligne</Text>
-        <Text style={styles.infoText}>
-          Les donnees restent disponibles localement tant qu&apos;elles ne sont pas
-          synchronisees.
+      {/* ── Note mode hors ligne ── */}
+      <View style={styles.infoNote}>
+        <Text style={styles.infoNoteText}>
+          Les données sont stockées localement et synchronisées manuellement
+          depuis l'écran Historique.
         </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#eaf4ff',
-    padding: 16,
-    gap: 18,
+    backgroundColor: Colors.background,
   },
-  hero: {
-    backgroundColor: '#f8fbff',
-    borderRadius: 12,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#cfe3ff',
-    gap: 6,
+  content: {
+    padding: Spacing.md,
+    paddingBottom: Spacing.xl,
+    gap: Spacing.md,
   },
-  eyebrow: {
-    color: '#0f766e',
-    fontSize: 13,
+
+  // ── Bannière ───────────────────────────────────────────────────────────────
+  banner: {
+    backgroundColor: Colors.primaryDark,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.xs,
+    ...Shadows.md,
+  },
+  bannerEyebrow: {
+    color: 'rgba(255,255,255,0.60)',
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  bannerTitle: {
+    color: Colors.textOnPrimary,
+    fontSize: FontSize.h1,
     fontWeight: '800',
   },
-  title: {
-    color: '#0f172a',
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  subtitle: {
-    color: '#475569',
-    fontSize: 14,
+  bannerSubtitle: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: FontSize.sm,
     lineHeight: 20,
   },
-  actions: {
-    gap: 14,
+
+  // ── Sections ───────────────────────────────────────────────────────────────
+  section: {
+    gap: Spacing.sm,
   },
+  sectionLabel: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    paddingHorizontal: Spacing.xs,
+  },
+
+  // ── Cartes d'action ────────────────────────────────────────────────────────
   actionCard: {
-    minHeight: 148,
-    borderRadius: 12,
-    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    gap: Spacing.md,
+    ...Shadows.sm,
+  },
+  actionCardPrimary: {
+    backgroundColor: Colors.primary,
+  },
+  actionCardSecondary: {
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    justifyContent: 'center',
-    gap: 8,
+    borderColor: Colors.border,
   },
-  primaryCard: {
-    backgroundColor: '#0f766e',
-    borderColor: '#0f766e',
-  },
-  secondaryCard: {
-    backgroundColor: '#dbeafe',
-    borderColor: '#93c5fd',
-  },
-  cardIcon: {
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  primaryCardIcon: {
-    color: '#ffffff',
-  },
-  secondaryCardIcon: {
-    color: '#0369a1',
-  },
-  cardTitle: {
-    fontSize: 21,
-    fontWeight: '800',
-  },
-  primaryCardTitle: {
-    color: '#ffffff',
-  },
-  secondaryCardTitle: {
-    color: '#0f172a',
-  },
-  cardText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  primaryCardText: {
-    color: '#dcfce7',
-  },
-  secondaryCardText: {
-    color: '#334155',
-  },
-  infoBox: {
-    borderRadius: 12,
-    backgroundColor: '#ecfeff',
-    borderWidth: 1,
-    borderColor: '#99f6e4',
-    padding: 14,
-    gap: 8,
-  },
-  infoTitle: {
-    color: '#0f766e',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  infoText: {
-    color: '#334155',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  syncButton: {
-    minHeight: 42,
-    borderRadius: 10,
-    backgroundColor: '#0284c7',
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: 'rgba(255,255,255,0.20)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  syncButtonDisabled: {
-    opacity: 0.7,
+  actionIconOutline: {
+    backgroundColor: Colors.primaryFaint,
   },
-  syncButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+  actionIconText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: Colors.textOnPrimary,
+  },
+  actionBody: {
+    flex: 1,
+    gap: 3,
+  },
+  actionTitleLight: {
+    color: Colors.textOnPrimary,
+    fontSize: FontSize.lg,
     fontWeight: '800',
+  },
+  actionTitleDark: {
+    color: Colors.textPrimary,
+    fontSize: FontSize.lg,
+    fontWeight: '800',
+  },
+  actionDescLight: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: FontSize.sm,
+  },
+  actionDescDark: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+  },
+  actionArrowLight: {
+    color: 'rgba(255,255,255,0.65)',
+    fontSize: 26,
+  },
+  actionArrowDark: {
+    color: Colors.textMuted,
+    fontSize: 26,
+  },
+
+  // ── Carte backend ──────────────────────────────────────────────────────────
+  backendCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: Spacing.md,
+    ...Shadows.sm,
+  },
+  backendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  // Pastille verte indiquant la configuration du serveur
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.flagGreen,
+  },
+  backendUrl: {
+    flex: 1,
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+  },
+  syncBtn: {
+    height: 46,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.sm,
+  },
+  syncBtnDisabled: {
+    opacity: 0.65,
+  },
+  syncBtnText: {
+    color: Colors.textOnPrimary,
+    fontSize: FontSize.sm,
+    fontWeight: '800',
+  },
+
+  // ── Note hors ligne ────────────────────────────────────────────────────────
+  infoNote: {
+    borderRadius: Radius.md,
+    backgroundColor: Colors.infoBg,
+    borderWidth: 1,
+    borderColor: Colors.infoBorder,
+    padding: Spacing.md,
+  },
+  infoNoteText: {
+    color: Colors.info,
+    fontSize: FontSize.sm,
+    lineHeight: 19,
   },
 });

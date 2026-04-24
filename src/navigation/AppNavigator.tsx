@@ -1,54 +1,93 @@
+/**
+ * Navigation principale de l'application.
+ *
+ * Structure :
+ *  - Bottom Tab Navigator avec 3 onglets : Accueil, Enregistrement, Historique.
+ *  - En-tête bleu RSU avec logo à gauche et bouton de déconnexion à droite.
+ *  - Icônes d'onglets avec fond actif arrondi.
+ */
+
 import React from 'react';
-import {Pressable, StyleSheet, Text} from 'react-native';
+import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {HistoryScreen} from '../screens/HistoryScreen';
 import {HomeScreen} from '../screens/HomeScreen';
 import {NewVisitScreen} from '../screens/NewVisitScreen';
+import {Colors, FontSize, Radius, Shadows, Spacing} from '../theme';
 
+/** Paramètres de chaque onglet (aucun paramètre passé aux écrans) */
 export type RootTabParamList = {
-  Home: undefined;
+  Home:     undefined;
   NewVisit: undefined;
-  History: undefined;
+  History:  undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
+// ─── Composants utilitaires ───────────────────────────────────────────────────
+
+/**
+ * Icône d'onglet : fond circulaire teinté quand l'onglet est actif.
+ */
 function TabIcon({
-  color,
   symbol,
+  color,
+  focused,
 }: {
-  color: string;
   symbol: string;
+  color: string;
+  focused: boolean;
 }) {
-  return <Text style={[styles.tabIcon, {color}]}>{symbol}</Text>;
+  return (
+    <View style={[styles.tabIconWrap, focused && styles.tabIconWrapActive]}>
+      <Text style={[styles.tabIconSymbol, {color}]}>{symbol}</Text>
+    </View>
+  );
 }
 
+/** Petit logo RSU dans l'en-tête (côté gauche) */
+function HeaderLogo() {
+  return (
+    <Image
+      source={require('../assets/images/rsu-logo.png')}
+      style={styles.headerLogo}
+      resizeMode="contain"
+    />
+  );
+}
+
+/** Bouton de déconnexion dans l'en-tête (côté droit) */
 function LogoutButton({onPress}: {onPress: () => void}) {
   return (
-    <Pressable style={styles.logoutButton} onPress={onPress}>
-      <Text style={styles.logoutButtonText}>Deconnexion</Text>
+    <Pressable style={styles.logoutBtn} onPress={onPress}>
+      <Text style={styles.logoutBtnText}>Déconnexion</Text>
     </Pressable>
   );
 }
 
-function HeaderRightButton(onLogout: () => void) {
+// Factories stables pour éviter de recréer les composants d'en-tête à chaque rendu
+function makeHeaderRight(onLogout: () => void) {
   return function HeaderRight() {
     return <LogoutButton onPress={onLogout} />;
   };
 }
 
-function renderHomeIcon({color}: {color: string}) {
-  return <TabIcon color={color} symbol="⌂" />;
+// ─── Factories d'icônes d'onglets ────────────────────────────────────────────
+
+function renderHomeIcon({color, focused}: {color: string; focused: boolean}) {
+  return <TabIcon symbol="⌂" color={color} focused={focused} />;
 }
 
-function renderNewVisitIcon({color}: {color: string}) {
-  return <TabIcon color={color} symbol="◎" />;
+function renderNewVisitIcon({color, focused}: {color: string; focused: boolean}) {
+  return <TabIcon symbol="⊕" color={color} focused={focused} />;
 }
 
-function renderHistoryIcon({color}: {color: string}) {
-  return <TabIcon color={color} symbol="◷" />;
+function renderHistoryIcon({color, focused}: {color: string; focused: boolean}) {
+  return <TabIcon symbol="☰" color={color} focused={focused} />;
 }
+
+// ─── Navigateur principal ────────────────────────────────────────────────────
 
 export function AppNavigator({onLogout}: {onLogout: () => void}) {
   return (
@@ -56,54 +95,67 @@ export function AppNavigator({onLogout}: {onLogout: () => void}) {
       <Tab.Navigator
         initialRouteName="Home"
         screenOptions={{
+          // En-tête bleu RSU avec ombre
           headerStyle: {
-            backgroundColor: '#eff6ff',
+            backgroundColor: Colors.primaryDark,
+            ...Shadows.md,
           },
           headerTitleStyle: {
-            color: '#0f172a',
+            color: Colors.textOnPrimary,
+            fontSize: FontSize.lg,
             fontWeight: '800',
           },
           headerShadowVisible: false,
+          // Logo RSU à gauche de chaque écran
+          headerLeft: () => <HeaderLogo />,
+          headerRight: makeHeaderRight(onLogout),
+
+          // Barre d'onglets blanche avec ombre subtile
           tabBarStyle: {
-            height: 64,
-            paddingBottom: 6,
+            height: 68,
+            paddingBottom: 8,
             paddingTop: 6,
-            backgroundColor: '#eff6ff',
-            borderTopColor: '#bfdbfe',
+            backgroundColor: Colors.surface,
+            borderTopColor: Colors.border,
+            borderTopWidth: 1,
+            ...Shadows.sm,
           },
-          tabBarActiveTintColor: '#0f766e',
-          tabBarInactiveTintColor: '#64748b',
+          tabBarActiveTintColor:   Colors.primary,
+          tabBarInactiveTintColor: Colors.textMuted,
           tabBarLabelStyle: {
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: '700',
+            marginBottom: 2,
           },
-          headerRight: HeaderRightButton(onLogout),
         }}>
+
         <Tab.Screen
           name="Home"
           component={HomeScreen}
           options={{
-            title: 'Access Control RSU',
-            tabBarLabel: 'Accueil',
-            tabBarIcon: renderHomeIcon,
+            title:        'Accueil',
+            tabBarLabel:  'Accueil',
+            tabBarIcon:   renderHomeIcon,
           }}
         />
+
         <Tab.Screen
           name="NewVisit"
           component={NewVisitScreen}
           options={{
-            title: 'Access Control RSU',
-            tabBarLabel: 'Enregistrement',
-            tabBarIcon: renderNewVisitIcon,
+            title:        'Nouvelle visite',
+            tabBarLabel:  'Enregistrer',
+            tabBarIcon:   renderNewVisitIcon,
           }}
         />
+
         <Tab.Screen
           name="History"
           component={HistoryScreen}
           options={{
-            title: 'Access Control RSU',
-            tabBarLabel: 'Historique',
-            tabBarIcon: renderHistoryIcon,
+            title:        'Historique',
+            tabBarLabel:  'Historique',
+            tabBarIcon:   renderHistoryIcon,
           }}
         />
       </Tab.Navigator>
@@ -112,17 +164,42 @@ export function AppNavigator({onLogout}: {onLogout: () => void}) {
 }
 
 const styles = StyleSheet.create({
-  tabIcon: {
-    fontSize: 18,
-  },
-  logoutButton: {
-    marginRight: 14,
-    minHeight: 32,
+  // Icône d'onglet
+  tabIconWrap: {
+    width: 44,
+    height: 28,
+    borderRadius: Radius.full,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  logoutButtonText: {
-    color: '#0369a1',
-    fontSize: 12,
-    fontWeight: '800',
+  tabIconWrapActive: {
+    // Fond teinté bleu clair quand l'onglet est sélectionné
+    backgroundColor: Colors.primaryFaint,
+  },
+  tabIconSymbol: {
+    fontSize: 20,
+  },
+
+  // Logo dans l'en-tête
+  headerLogo: {
+    width: 38,
+    height: 38,
+    marginLeft: Spacing.md,
+  },
+
+  // Bouton de déconnexion
+  logoutBtn: {
+    marginRight: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  logoutBtnText: {
+    color: Colors.textOnPrimary,
+    fontSize: FontSize.xs,
+    fontWeight: '700',
   },
 });

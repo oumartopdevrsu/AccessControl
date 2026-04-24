@@ -96,3 +96,13 @@ To learn more about React Native, take a look at the following resources:
 - [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
 - [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
 "# AccessControl" 
+
+
+
+#Lunch emulator ubuntu
+sudo modprobe kvm-intel && 
+echo "kvm-intel" | sudo tee /etc/modules-load.d/kvm.conf && 
+sudo usermod -aG kvm $USER && 
+sudo chown root:kvm /dev/kvm && 
+sudo chmod 660 /dev/kvm && 
+flutter emulators --launch Pixel_9_Pro_XL
